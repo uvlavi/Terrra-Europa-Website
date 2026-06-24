@@ -515,14 +515,14 @@
     100%    { opacity: 0;   filter: brightness(0.10); }
   }
 
-  /* Mobile: keep the day cycle (brightness only), drop the expensive sun + colour filters */
-  @media (max-width: 768px) {
-    .hero-slide { animation-name: heroFadeMobile; }
-    .hero-overlay {
-      background: linear-gradient(to bottom, rgba(8,16,26,0.45) 0%, rgba(8,16,26,0.35) 50%, rgba(8,16,26,0.55) 100%);
-    }
-    .hero-sun-layer { display: none; }
+  /* Mobile-simple mode (applies to ALL screen widths). Decided 2026-06-24
+     after the desktop sepia/hue-rotate caused a grey sky on transitions —
+     mobile's brightness-only day cycle reads cleaner everywhere. */
+  .hero-slide { animation-name: heroFadeMobile; }
+  .hero-overlay {
+    background: linear-gradient(to bottom, rgba(8,16,26,0.45) 0%, rgba(8,16,26,0.35) 50%, rgba(8,16,26,0.55) 100%);
   }
+  .hero-sun-layer { display: none; }
 
   /* Respect users who prefer reduced motion — hide the moving sun */
   @media (prefers-reduced-motion: reduce) {

@@ -93,7 +93,7 @@ SUN_DEFAULTS = {
     "colour_mix":        1.00,  # 0 = image-only colour shift, 1 = sun-only colour shift, 0.5 = both
     "peak_altitude_vh":  7,     # vertical position at peak — smaller = higher in sky
     "horizon_vh":        72,    # vertical position when sun is below horizon
-    "cycle_seconds":     150,   # full day-night cycle duration
+    "cycle_seconds":     300,   # full day-night cycle code default (saved override may differ)
 }
 # Slider bounds are centred ±~50% around each default so the chosen value sits
 # mid-slider, leaving headroom for nudges in both directions without re-saving.
@@ -105,7 +105,7 @@ SUN_BOUNDS = {
     "colour_mix":        (0.0, 1.0),
     "peak_altitude_vh":  (2, 18),
     "horizon_vh":        (55, 95),
-    "cycle_seconds":     (60, 240),
+    "cycle_seconds":     (60, 480),
 }
 
 def _load_sun_config() -> dict:
