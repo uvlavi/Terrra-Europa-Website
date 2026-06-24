@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Hero sun controls — TERRRA Europa{% endblock %}
+
+{% block head %}
+<style>
+  body { background: #0b1422; color: #e8eef7; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1 { font-weight: 700; font-size: 1.5rem; margin: 0 0 8px; }
+  .lede { color: rgba(255,255,255,0.6); margin: 0 0 24px; font-size: 0.95rem; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .panel h2 { font-size: 1rem; font-weight: 600; margin: 0 0 16px; color: #6fcf97; }
+
+  .field { margin-bottom: 18px; }
+  .field label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 0.85rem; font-weight: 600; margin-bottom: 6px;
+    color: rgba(255,255,255,0.82);
+  }
+  .field label .val {
+    font-variant-numeric: tabular-nums;
+    color: #6fcf97;
+    font-weight: 700;
+  }
+  .field .hint {
+    font-size: 0.75rem; color: rgba(255,255,255,0.5);
+    margin-top: 4px; line-height: 1.4;
+  }
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none; appearance: none;
+    height: 4px; background: rgba(255,255,255,0.18); border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #6fcf97; cursor: pointer;
+    border: 2px solid #0b1422;
+    box-shadow: 0 0 0 1px rgba(111,207,151,0.4);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #6fcf97; cursor: pointer;
+    border: 2px solid #0b1422;
+  }
+
+  .actions {
+    display: flex; gap: 12px; margin-top: 8px;
+  }
+  button {
+    flex: 1;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; transition: transform 0.12s, background 0.12s;
+  }
+  .btn-save {
+    background: #6fcf97; color: #0b1422;
+    border: 1px solid #6fcf97;
+  }
+  .btn-save:hover { transform: translateY(-1px); }
+  .btn-reset {
+    background: transparent; color: rgba(255,255,255,0.82);
+    border: 1px solid rgba(255,255,255,0.22);
+  }
+  .btn-reset:hover { background: rgba(255,255,255,0.05); }
+
+  .saved-toast {
+    display: inline-block;
+    padding: 4px 10px; border-radius: 6px;
+    background: rgba(111,207,151,0.15); color: #6fcf97;
+    font-size: 0.8rem; font-weight: 600;
+    margin-left: 8px;
+  }
+
+  .preview-wrap {
+    background: #000; border-radius: 12px; overflow: hidden;
+    position: relative; aspect-ratio: 16 / 9;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .preview-wrap iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border: 0;
+  }
+  .preview-label {
+    font-size: 0.85rem; color: rgba(255,255,255,0.55);
+    margin: 0 0 8px;
+  }
+  .preview-label .live {
+    display: inline-block; width: 8px; height: 8px;
+    background: #6fcf97; border-radius: 50%;
+    margin-right: 6px; animation: pulse 1.6s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+</style>
+{% endblock %}
+
+{% block nav_action %}
+<div class="nav-action">
+  <a href="/admin">Admin</a>
+  <a href="/admin/analytics">Analytics</a>
+  <a href="/logout">Sign out</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <h1>Hero sun controls
+    {% if saved %}<span class="saved-toast">Saved ✓</span>{% endif %}
+  </h1>
+  <p class="lede">Live-tune the moving sun and lighting curve on the homepage. Move a slider — the preview updates instantly. Click <b>Save</b> to publish to terrra-europa.com.</p>
+
+  <div class="layout">
+    <form class="panel" method="post" action="/admin/hero-sun" id="sun-form">
+      <h2>Sun &amp; lighting</h2>
+
+      <div class="field">
+        <label>Sun size <span class="val" id="val-size_px">{{ sun_cfg.size_px }}px</span></label>
+        <input type="range" name="size_px" id="size_px"
+               min="{{ sun_bounds.size_px[0] }}" max="{{ sun_bounds.size_px[1] }}" step="2"
+               value="{{ sun_cfg.size_px }}">
+        <div class="hint">Diameter of the bright sun disc. Halo radius scales with this — small disc + big halo gives an atmospheric look.</div>
+      </div>
+
+      <div class="field">
+        <label>Image brightness (noon) <span class="val" id="val-image_brightness">{{ '%.2f' | format(sun_cfg.image_brightness) }}×</span></label>
+        <input type="range" name="image_brightness" id="image_brightness"
+               min="{{ sun_bounds.image_brightness[0] }}" max="{{ sun_bounds.image_brightness[1] }}" step="0.05"
+               value="{{ sun_cfg.image_brightness }}">
+        <div class="hint">How bright the background photo is at the midday plateau. Values above ~3.0 wash out detail.</div>
+      </div>
+
+      <div class="field">
+        <label>Sun brightness <span class="val" id="val-sun_brightness">{{ '%.2f' | format(sun_cfg.sun_brightness) }}×</span></label>
+        <input type="range" name="sun_brightness" id="sun_brightness"
+               min="{{ sun_bounds.sun_brightness[0] }}" max="{{ sun_bounds.sun_brightness[1] }}" step="0.05"
+               value="{{ sun_cfg.sun_brightness }}">
+        <div class="hint">Multiplier on the sun disc + halo intensity. Default sits mid-slider — slide left for a dimmer sun, right for a stronger halo.</div>
+      </div>
+
+      <div class="field">
+        <label>Noon neutrality <span class="val" id="val-noon_neutrality">{{ '%.2f' | format(sun_cfg.noon_neutrality) }}</span></label>
+        <input type="range" name="noon_neutrality" id="noon_neutrality"
+               min="{{ sun_bounds.noon_neutrality[0] }}" max="{{ sun_bounds.noon_neutrality[1] }}" step="0.05"
+               value="{{ sun_cfg.noon_neutrality }}">
+        <div class="hint">How clean the midday light reads. <b>0</b> = warm sepia all day. <b>1</b> (default) = neutral noon, red only at sunrise/sunset — best for text readability. Above 1 = slightly cool/blue noon.</div>
+      </div>
+
+      <div class="field">
+        <label>Colour shift mix <span class="val" id="val-colour_mix">{{ '%.2f' | format(sun_cfg.colour_mix) }}</span></label>
+        <input type="range" name="colour_mix" id="colour_mix"
+               min="{{ sun_bounds.colour_mix[0] }}" max="{{ sun_bounds.colour_mix[1] }}" step="0.05"
+               value="{{ sun_cfg.colour_mix }}">
+        <div class="hint">Where the sunrise/sunset colour drama happens. <b>0</b> = image filter tints the whole photo (vintage-photo feel). <b>1</b> (default) = only the sun &amp; its halo cycle through red→white→red; the photo stays its natural colour. <b>0.5</b> = both at half strength.</div>
+      </div>
+
+      <div class="field">
+        <label>Peak altitude (height in sky) <span class="val" id="val-peak_altitude_vh">{{ sun_cfg.peak_altitude_vh }}vh</span></label>
+        <input type="range" name="peak_altitude_vh" id="peak_altitude_vh"
+               min="{{ sun_bounds.peak_altitude_vh[0] }}" max="{{ sun_bounds.peak_altitude_vh[1] }}" step="1"
+               value="{{ sun_cfg.peak_altitude_vh }}">
+        <div class="hint">How high the sun reaches at peak. Smaller = higher in the sky (top of viewport = 0).</div>
+      </div>
+
+      <div class="field">
+        <label>Horizon line (where sun rises/sets) <span class="val" id="val-horizon_vh">{{ sun_cfg.horizon_vh }}vh</span></label>
+        <input type="range" name="horizon_vh" id="horizon_vh"
+               min="{{ sun_bounds.horizon_vh[0] }}" max="{{ sun_bounds.horizon_vh[1] }}" step="1"
+               value="{{ sun_cfg.horizon_vh }}">
+        <div class="hint">Where the sun crosses below the horizon. Larger = lower (below the fold).</div>
+      </div>
+
+      <div class="field">
+        <label>Cycle duration <span class="val" id="val-cycle_seconds">{{ sun_cfg.cycle_seconds }}s</span></label>
+        <input type="range" name="cycle_seconds" id="cycle_seconds"
+               min="{{ sun_bounds.cycle_seconds[0] }}" max="{{ sun_bounds.cycle_seconds[1] }}" step="5"
+               value="{{ sun_cfg.cycle_seconds }}">
+        <div class="hint">Total day-night cycle across all 5 background photos. Each photo gets cycle/5.</div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn-save">Save</button>
+        <button type="submit" name="reset" value="1" class="btn-reset"
+                onclick="return confirm('Reset all hero-sun values to defaults?');">Reset</button>
+      </div>
+    </form>
+
+    <div>
+      <p class="preview-label"><span class="live"></span>Live preview</p>
+      <div class="preview-wrap">
+        <iframe id="preview" src="/?preview=1" title="Hero preview"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Live preview: when any slider moves, update both the label and the CSS
+  // variables inside the preview iframe. Saving the form persists; closing
+  // without saving reverts on next load.
+  (function() {
+    const iframe = document.getElementById('preview');
+    const sliders = ['size_px', 'image_brightness', 'sun_brightness', 'noon_neutrality', 'colour_mix', 'peak_altitude_vh', 'horizon_vh', 'cycle_seconds'];
+
+    const fmt = {
+      size_px:          v => v + 'px',
+      image_brightness: v => Number(v).toFixed(2) + '×',
+      sun_brightness:   v => Number(v).toFixed(2) + '×',
+      noon_neutrality:  v => Number(v).toFixed(2),
+      colour_mix:       v => Number(v).toFixed(2),
+      peak_altitude_vh: v => v + 'vh',
+      horizon_vh:       v => v + 'vh',
+      cycle_seconds:    v => v + 's',
+    };
+
+    const cssVar = {
+      size_px:          v => ({ '--sun-size': v + 'px' }),
+      image_brightness: v => ({ '--sun-peak-brightness': v }),
+      sun_brightness:   v => ({ '--sun-brightness': v }),
+      noon_neutrality:  v => ({ '--noon-neutrality': v }),
+      colour_mix:       v => ({ '--colour-mix': v }),
+      peak_altitude_vh: v => ({ '--sun-peak-altitude': v + 'vh' }),
+      horizon_vh:       v => ({ '--sun-horizon': v + 'vh' }),
+      cycle_seconds:    v => ({ '--sun-cycle': v + 's' }),
+    };
+
+    function applyToPreview(id, value) {
+      const doc = iframe.contentDocument;
+      if (!doc || !doc.documentElement) return;
+      const vars = cssVar[id](value);
+      for (const [k, v] of Object.entries(vars)) {
+        doc.documentElement.style.setProperty(k, v);
+      }
+    }
+
+    function pushAllToPreview() {
+      sliders.forEach(id => {
+        const el = document.getElementById(id);
+        applyToPreview(id, el.value);
+      });
+    }
+
+    sliders.forEach(id => {
+      const el = document.getElementById(id);
+      const label = document.getElementById('val-' + id);
+      el.addEventListener('input', () => {
+        label.textContent = fmt[id](el.value);
+        applyToPreview(id, el.value);
+      });
+    });
+
+    // Push current state into iframe once it loads (also handles reload after save)
+    iframe.addEventListener('load', pushAllToPreview);
+  })();
+</script>
+{% endblock %}

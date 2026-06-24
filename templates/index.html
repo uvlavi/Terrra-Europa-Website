@@ -1,0 +1,1035 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('index.page_title') }}{% endblock %}
+{% block description %}{{ t('index.meta_description') }}{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Hero sun + lighting config (admin-tunable at /admin/hero-sun) ── */
+  :root {
+    --sun-size: {{ sun_cfg.size_px }}px;
+    --sun-peak-brightness: {{ sun_cfg.image_brightness }};
+    --sun-brightness: {{ sun_cfg.sun_brightness }};
+    --noon-neutrality: {{ sun_cfg.noon_neutrality }};
+    --colour-mix: {{ sun_cfg.colour_mix }};
+    --sun-peak-altitude: {{ sun_cfg.peak_altitude_vh }}vh;
+    --sun-horizon: {{ sun_cfg.horizon_vh }}vh;
+    --sun-cycle: {{ sun_cfg.cycle_seconds }}s;
+    /* derived: intermediate brightness levels scale with peak so the curve
+       always rises smoothly from 0.10 → peak, never jumps */
+    --sun-b1: calc(var(--sun-peak-brightness) * 0.18);
+    --sun-b2: calc(var(--sun-peak-brightness) * 0.28);
+    --sun-b3: calc(var(--sun-peak-brightness) * 0.42);
+    --sun-b4: calc(var(--sun-peak-brightness) * 0.59);
+    --sun-b5: calc(var(--sun-peak-brightness) * 0.78);
+    /* derived altitudes — keep arc shape proportional */
+    --sun-alt-low:  calc(var(--sun-horizon) - 12vh);
+    --sun-alt-mid:  calc((var(--sun-horizon) + var(--sun-peak-altitude)) / 2);
+    --sun-alt-high: calc(var(--sun-peak-altitude) + 4vh);
+    /* Sun element is much larger than the viewport so its halo extends past
+       every screen edge — no visible cutoff. The gradient uses 6 stops so the
+       falloff feels smooth rather than stepped: bright core → inner halo →
+       mid halo → outer halo → soft fade → transparent.
+       Halo radii are 2× the previous values, so the sun's light reaches
+       roughly twice as far across the sky before fading to black. */
+    --sun-r1: calc(var(--sun-size) * 1.0);    /* core edge — kept tight, this is the disc */
+    --sun-r2: calc(var(--sun-size) * 10.5);   /* inner halo */
+    --sun-r3: calc(var(--sun-size) * 21.0);   /* mid halo */
+    --sun-r4: 105vmax;                         /* outer halo */
+    --sun-r5: 210vmax;                         /* soft fade */
+    --sun-r6: 380vmax;                         /* fully transparent */
+    /* --noon-warm scales the noon plateau's warm cast. At noon-neutrality=1
+       (default) → 0 (fully neutral). At noon-neutrality=0 → 1 (full original
+       warm cast). Values above 1.0 (slider goes to 1.5) give a slightly cool
+       cast instead, useful if a particular photo needs more contrast. */
+    --noon-warm: max(0, calc(1 - var(--noon-neutrality)));
+    /* --image-warmth = how much the image filter does the sunrise/sunset
+       colour shift. --sun-warmth = how much the sun's own RGB cycles.
+       At colour-mix=0 image does it all, sun stays white-gold.
+       At colour-mix=1 sun does it all, image only does brightness changes.
+       At 0.5 both at half-strength. */
+    --image-warmth: calc(1 - var(--colour-mix));
+    --sun-warmth: var(--colour-mix);
+  }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 120px 40px 100px;
+    position: relative; overflow: hidden;
+    background: #080e17;
+  }
+
+  /* Slideshow layers — stacked divs crossfade behind content.
+     Each slide is visible for cycle/5 (its "day"), then dark for 4×cycle/5.
+     The 5 slides are staggered by 20% so exactly one is bright at a time. */
+  .hero-slides { position: absolute; inset: 0; z-index: 0; }
+  .hero-slide {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    opacity: 0;
+    animation: heroFade var(--sun-cycle) linear infinite;
+  }
+  .hero-slide:nth-child(1) { background-image: url('/static/bg1.jpg'); animation-delay: calc(var(--sun-cycle) * 0 / 5); }
+  .hero-slide:nth-child(2) { background-image: url('/static/bg2.jpg'); animation-delay: calc(var(--sun-cycle) * 1 / 5); }
+  .hero-slide:nth-child(3) { background-image: url('/static/bg3.jpg'); animation-delay: calc(var(--sun-cycle) * 2 / 5); }
+  .hero-slide:nth-child(4) { background-image: url('/static/bg4.jpg'); animation-delay: calc(var(--sun-cycle) * 3 / 5); }
+  .hero-slide:nth-child(5) { background-image: url('/static/bg5.jpg'); animation-delay: calc(var(--sun-cycle) * 4 / 5); }
+
+  @keyframes heroFade {
+    /* Each slide runs on the full --sun-cycle but is bright only in its own
+       20% window (5 slides × 20% = 100%). Inside that 20% window the day is
+       structured 30/40/30 — same proportions as the sun's 0–100% sub-cycle:
+         0.00–0.40% : image fades in
+         0.40–6.40% : SUNRISE (30% of 20%) — red → white, brightness ramps up
+         6.40–14.40%: NOON PLATEAU (40% of 20%) — text-readable, brightness steady
+         14.40–19.60%: SUNSET (26% of 20%) — white → red, brightness ramps down
+         19.60–20.00%: image fades to black
+         20–100%    : dark (other slides taking turns)
+       Brightness uses --sun-b1..b5 (scaled fractions of --sun-peak-brightness)
+       so the admin slider drives the whole curve. */
+
+    /* total dark — pre-dawn */
+    0%     { opacity: 0;   filter: brightness(0.10) saturate(0.45) hue-rotate(0deg); }
+
+    /* image fade-in (0 → 0.4%) */
+    0.2%   { opacity: 0.5; filter: brightness(0.25) saturate(0.55) hue-rotate(0deg); }
+    0.4%   { opacity: 1;   filter: brightness(0.40) saturate(0.62) hue-rotate(0deg); }
+
+    /* SUNRISE 0.4 → 6.4% : 10 steps, brightness 0.40 → peak. Sepia + hue-rotate
+       scaled by --image-warmth: at colour-mix=1 the image stays neutral and
+       only the sun cycles its colours. */
+    1.0%   { opacity: 1;   filter: brightness(var(--sun-b1)) saturate(0.72) sepia(calc(0.10 * var(--image-warmth))) hue-rotate(calc(-4deg * var(--image-warmth))); }
+    1.6%   { opacity: 1;   filter: brightness(var(--sun-b1)) saturate(0.78) sepia(calc(0.15 * var(--image-warmth))) hue-rotate(calc(-2deg * var(--image-warmth))); }
+    2.2%   { opacity: 1;   filter: brightness(var(--sun-b2)) saturate(0.85) sepia(calc(0.18 * var(--image-warmth))) hue-rotate(0deg); }
+    2.8%   { opacity: 1;   filter: brightness(var(--sun-b2)) saturate(0.92) sepia(calc(0.18 * var(--image-warmth))) hue-rotate(calc(2deg * var(--image-warmth))); }
+    3.4%   { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(0.99) sepia(calc(0.16 * var(--image-warmth))) hue-rotate(calc(4deg * var(--image-warmth))); }
+    4.0%   { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(1.05) sepia(calc(0.13 * var(--image-warmth))) hue-rotate(calc(5deg * var(--image-warmth))); }
+    4.6%   { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.10) sepia(calc(0.10 * var(--image-warmth))) hue-rotate(calc(6deg * var(--image-warmth))); }
+    5.2%   { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.14) sepia(calc(0.07 * var(--image-warmth))) hue-rotate(calc(7deg * var(--image-warmth))); }
+    5.8%   { opacity: 1;   filter: brightness(var(--sun-b5)) saturate(1.17) sepia(calc(0.04 * var(--noon-warm) * var(--image-warmth))) hue-rotate(calc(7deg * var(--noon-warm) * var(--image-warmth))); }
+    6.4%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(1.20) sepia(calc(0.02 * var(--noon-warm) * var(--image-warmth))) hue-rotate(calc(8deg * var(--noon-warm) * var(--image-warmth))); }
+
+    /* NOON PLATEAU 6.4 → 14.4% : brightness held at peak. Colour warmth
+       scales with --noon-warm (=1-noon_neutrality). At neutrality=1.0 the
+       sepia/hue terms collapse to 0 → clean neutral light. */
+    8.0%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.00 + 0.18 * var(--noon-warm))) sepia(calc(0.02 * var(--noon-warm))) hue-rotate(calc(6deg * var(--noon-warm))); }
+    10.0%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.00 + 0.16 * var(--noon-warm))) sepia(calc(0.02 * var(--noon-warm))) hue-rotate(calc(4deg * var(--noon-warm))); }
+    12.0%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.00 + 0.18 * var(--noon-warm))) sepia(calc(0.04 * var(--noon-warm))) hue-rotate(calc(2deg * var(--noon-warm))); }
+    14.4%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.05 + 0.17 * var(--noon-warm))) sepia(calc(0.10 * var(--noon-warm))) hue-rotate(0deg); }
+
+    /* SUNSET 14.4 → 19.6% : 9 steps, white → red. Sepia + hue scaled by
+       --image-warmth (image colour-shift strength); early steps additionally
+       softened by noon-warm so they don't snap when the plateau is neutralised. */
+    15.0%  { opacity: 1;   filter: brightness(var(--sun-b5)) saturate(1.30) sepia(calc(0.20 * max(0.5, var(--noon-warm)) * var(--image-warmth))) hue-rotate(calc(-4deg * max(0.5, var(--noon-warm)) * var(--image-warmth))); }
+    15.6%  { opacity: 1;   filter: brightness(var(--sun-b5)) saturate(1.40) sepia(calc(0.30 * var(--image-warmth))) hue-rotate(calc(-8deg * var(--image-warmth))); }
+    16.2%  { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.50) sepia(calc(0.40 * var(--image-warmth))) hue-rotate(calc(-14deg * var(--image-warmth))); }
+    16.8%  { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.58) sepia(calc(0.48 * var(--image-warmth))) hue-rotate(calc(-20deg * var(--image-warmth))); }
+    17.4%  { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(1.65) sepia(calc(0.56 * var(--image-warmth))) hue-rotate(calc(-25deg * var(--image-warmth))); }
+    18.0%  { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(1.72) sepia(calc(0.62 * var(--image-warmth))) hue-rotate(calc(-30deg * var(--image-warmth))); }
+    18.6%  { opacity: 1;   filter: brightness(var(--sun-b2)) saturate(1.76) sepia(calc(0.66 * var(--image-warmth))) hue-rotate(calc(-33deg * var(--image-warmth))); }
+    19.2%  { opacity: 0.85; filter: brightness(var(--sun-b1)) saturate(1.72) sepia(calc(0.70 * var(--image-warmth))) hue-rotate(calc(-36deg * var(--image-warmth))); }
+    19.6%  { opacity: 0.4; filter: brightness(0.32) saturate(1.60) sepia(calc(0.74 * var(--image-warmth))) hue-rotate(calc(-38deg * var(--image-warmth))); }
+
+    /* fade to dark, then hold for the other 80% of the cycle */
+    20%    { opacity: 0;   filter: brightness(0.10) saturate(0.45) hue-rotate(0deg); }
+    100%   { opacity: 0;   filter: brightness(0.10) saturate(0.45) hue-rotate(0deg); }
+  }
+
+  /* Overlay: backlit centre on desktop, simpler on mobile (filter CSS unreliable on iOS) */
+  .hero-overlay {
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      radial-gradient(ellipse 60% 55% at 50% 52%, rgba(8,16,26,0.05) 0%, rgba(8,16,26,0.52) 100%),
+      linear-gradient(to bottom, rgba(8,16,26,0.22) 0%, rgba(8,16,26,0.08) 40%, rgba(8,16,26,0.35) 100%);
+  }
+  /* ── Sun: traverses an arc above the horizon, one full arc per image ──
+     The slideshow runs 5 images on `--sun-cycle` total. Each image is visible
+     for cycle/5 (default 24s) and gets its own sunrise→peak→sunset.
+
+     The sun is rendered as a 140vmax × 140vmax element — far larger than the
+     viewport — so its halo always bleeds past the screen edges and never shows
+     a cutoff. The gradient has three stops:
+       0 →  --sun-size   : bright "disc" core
+       →  --sun-glow-radius : bright halo
+       →  --sun-fade-radius : long gentle fade to transparent
+     The element is positioned by its CENTRE (`translate(-50%,-50%)`), so
+     `left`/`top` % values describe where the sun's centre sits — natural to
+     reason about and what the admin sliders feed. */
+  /* Sun is rendered as two stacked layers — a colour-cycling one (red→white→red)
+     and a neutral white-gold one. Each layer's STRENGTH (its envelope opacity)
+     is set on the wrapper; the inner element runs the arc + per-keyframe
+     opacity. CSS opacities multiply through ancestor chain, so layer-strength
+     × keyframe-opacity gives the final visible value. */
+  .hero-sun-layer {
+    position: absolute; inset: 0; z-index: 1;
+    pointer-events: none;
+    will-change: opacity;
+  }
+  .hero-sun-layer.coloured { opacity: var(--sun-warmth); }
+  .hero-sun-layer.neutral  { opacity: var(--image-warmth); }
+
+  .hero-sun, .hero-sun-neutral {
+    position: absolute;
+    width: 420vmax; height: 420vmax;
+    border-radius: 50%;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    will-change: left, top, background, opacity;
+    transform: translate(-50%, -50%);
+    /* --sun-brightness slider scales the entire rendered sun (disc + halo) */
+    filter: brightness(var(--sun-brightness));
+    left: -10vw; top: var(--sun-horizon); opacity: 0;
+  }
+  .hero-sun         { animation: sunArc        calc(var(--sun-cycle) / 5) linear infinite; }
+  .hero-sun-neutral { animation: sunArcNeutral calc(var(--sun-cycle) / 5) linear infinite; }
+
+  @keyframes sunArc {
+    /* Each iteration = one image's lifetime, matched to heroFade's 30/40/30
+       day structure:
+         2–32% : SUNRISE — sun rises from below-horizon left to near-peak altitude
+         32–72%: NOON PLATEAU — sun stays high in the sky, slowly drifting across centre
+         72–98%: SUNSET — sun descends to below-horizon right
+       Colour journey: deep red → orange → amber → white-gold (noon)
+                        → amber → orange → deep red.
+       Gradient is the same 7-stop curve at every keyframe, with only opacity
+       multipliers + colour shifting. */
+
+    /* below horizon, off-screen left — pre-dawn (invisible) */
+    0%   { left: -10vw; top: var(--sun-horizon); opacity: 0;
+           background: radial-gradient(circle,
+             rgba(240,110,75,0.95) 0,
+             rgba(240,110,75,0.68) var(--sun-r1),
+             rgba(240,110,75,0.42) var(--sun-r2),
+             rgba(240,110,75,0.20) var(--sun-r3),
+             rgba(240,110,75,0.07) var(--sun-r4),
+             rgba(240,110,75,0.02) var(--sun-r5),
+             rgba(240,110,75,0)    var(--sun-r6)); }
+
+    /* SUNRISE 2–32% — natural red is confined to the very low arc (sun below
+       ~30% of full height). Transition red → amber → white-gold by ~17%. */
+    /* just above horizon — warm natural red */
+    5%   { left:  2vw; top: var(--sun-alt-low); opacity: 0.85;
+           background: radial-gradient(circle,
+             rgba(245,120,80,1)    0,
+             rgba(245,120,80,0.70) var(--sun-r1),
+             rgba(245,120,80,0.44) var(--sun-r2),
+             rgba(245,120,80,0.21) var(--sun-r3),
+             rgba(245,120,80,0.08) var(--sun-r4),
+             rgba(245,120,80,0.02) var(--sun-r5),
+             rgba(245,120,80,0)    var(--sun-r6)); }
+
+    /* approx 30% up — fast colour transition through amber */
+    11%  { left:  9vw; top: calc(var(--sun-horizon) - 22vh); opacity: 0.95;
+           background: radial-gradient(circle,
+             rgba(255,200,120,1)    0,
+             rgba(255,200,120,0.74) var(--sun-r1),
+             rgba(255,200,120,0.48) var(--sun-r2),
+             rgba(255,200,120,0.24) var(--sun-r3),
+             rgba(255,200,120,0.09) var(--sun-r4),
+             rgba(255,200,120,0.03) var(--sun-r5),
+             rgba(255,200,120,0)    var(--sun-r6)); }
+
+    /* above the warm-light zone — already white-gold */
+    17%  { left: 17vw; top: var(--sun-alt-mid); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,245,210,1)    0,
+             rgba(255,245,210,0.76) var(--sun-r1),
+             rgba(255,245,210,0.50) var(--sun-r2),
+             rgba(255,245,210,0.26) var(--sun-r3),
+             rgba(255,245,210,0.10) var(--sun-r4),
+             rgba(255,245,210,0.03) var(--sun-r5),
+             rgba(255,245,210,0)    var(--sun-r6)); }
+
+    /* mid-rise — white-gold (same palette as noon) */
+    23%  { left: 25vw; top: calc(var(--sun-alt-mid) - 12vh); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1)    0,
+             rgba(255,250,220,0.78) var(--sun-r1),
+             rgba(255,250,220,0.52) var(--sun-r2),
+             rgba(255,250,220,0.27) var(--sun-r3),
+             rgba(255,250,220,0.10) var(--sun-r4),
+             rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+
+    /* late-rise — white-gold */
+    28%  { left: 33vw; top: var(--sun-alt-high); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1)    0,
+             rgba(255,250,220,0.80) var(--sun-r1),
+             rgba(255,250,220,0.55) var(--sun-r2),
+             rgba(255,250,220,0.30) var(--sun-r3),
+             rgba(255,250,220,0.11) var(--sun-r4),
+             rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+
+    /* reaches near-peak — golden white, end of sunrise */
+    32%  { left: 40vw; top: calc(var(--sun-peak-altitude) + 3vh); opacity: 0.95;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.95) 0,
+             rgba(255,250,220,0.74) var(--sun-r1),
+             rgba(255,250,220,0.52) var(--sun-r2),
+             rgba(255,250,220,0.29) var(--sun-r3),
+             rgba(255,250,220,0.11) var(--sun-r4),
+             rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+
+    /* NOON PLATEAU 32–72% — sun drifts gently across overhead, colour stays white-gold */
+    42%  { left: 47vw; top: calc(var(--sun-peak-altitude) + 1vh); opacity: 0.88;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.92) 0,
+             rgba(255,250,220,0.72) var(--sun-r1),
+             rgba(255,250,220,0.51) var(--sun-r2),
+             rgba(255,250,220,0.29) var(--sun-r3),
+             rgba(255,250,220,0.11) var(--sun-r4),
+             rgba(255,250,220,0.04) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+
+    /* solar noon — directly overhead, biggest halo */
+    52%  { left: 52vw; top: var(--sun-peak-altitude); opacity: 0.85;
+           background: radial-gradient(circle,
+             rgba(255,252,235,0.92) 0,
+             rgba(255,250,220,0.74) var(--sun-r1),
+             rgba(255,250,220,0.52) var(--sun-r2),
+             rgba(255,250,220,0.30) var(--sun-r3),
+             rgba(255,250,220,0.12) var(--sun-r4),
+             rgba(255,250,220,0.04) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+
+    /* post-noon — starting to drift right */
+    62%  { left: 58vw; top: calc(var(--sun-peak-altitude) + 1vh); opacity: 0.88;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.92) 0,
+             rgba(255,248,210,0.72) var(--sun-r1),
+             rgba(255,248,210,0.51) var(--sun-r2),
+             rgba(255,248,210,0.29) var(--sun-r3),
+             rgba(255,248,210,0.11) var(--sun-r4),
+             rgba(255,248,210,0.04) var(--sun-r5),
+             rgba(255,248,210,0)    var(--sun-r6)); }
+
+    /* end of plateau — sun starts cooling toward amber */
+    72%  { left: 64vw; top: calc(var(--sun-peak-altitude) + 3vh); opacity: 0.92;
+           background: radial-gradient(circle,
+             rgba(255,235,180,0.95) 0,
+             rgba(255,235,180,0.74) var(--sun-r1),
+             rgba(255,235,180,0.52) var(--sun-r2),
+             rgba(255,235,180,0.29) var(--sun-r3),
+             rgba(255,235,180,0.11) var(--sun-r4),
+             rgba(255,235,180,0.03) var(--sun-r5),
+             rgba(255,235,180,0)    var(--sun-r6)); }
+
+    /* SUNSET 72–98% — sun stays white-gold until it dips back below ~30% of
+       full height, then transitions through amber to deep red at horizon. */
+    77%  { left: 71vw; top: var(--sun-alt-high); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1)    0,
+             rgba(255,250,220,0.78) var(--sun-r1),
+             rgba(255,250,220,0.54) var(--sun-r2),
+             rgba(255,250,220,0.30) var(--sun-r3),
+             rgba(255,250,220,0.12) var(--sun-r4),
+             rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+
+    /* still high — white-gold */
+    82%  { left: 78vw; top: calc(var(--sun-alt-mid) - 8vh); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1)    0,
+             rgba(255,250,220,0.76) var(--sun-r1),
+             rgba(255,250,220,0.52) var(--sun-r2),
+             rgba(255,250,220,0.28) var(--sun-r3),
+             rgba(255,250,220,0.10) var(--sun-r4),
+             rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+
+    /* descending toward warm zone — white-gold */
+    87%  { left: 85vw; top: var(--sun-alt-mid); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,245,210,1)    0,
+             rgba(255,245,210,0.74) var(--sun-r1),
+             rgba(255,245,210,0.48) var(--sun-r2),
+             rgba(255,245,210,0.24) var(--sun-r3),
+             rgba(255,245,210,0.09) var(--sun-r4),
+             rgba(255,245,210,0.02) var(--sun-r5),
+             rgba(255,245,210,0)    var(--sun-r6)); }
+
+    /* approx 30% up — fast colour transition through amber */
+    92%  { left: 91vw; top: calc(var(--sun-horizon) - 22vh); opacity: 0.95;
+           background: radial-gradient(circle,
+             rgba(255,200,120,1)    0,
+             rgba(255,200,120,0.70) var(--sun-r1),
+             rgba(255,200,120,0.44) var(--sun-r2),
+             rgba(255,200,120,0.21) var(--sun-r3),
+             rgba(255,200,120,0.07) var(--sun-r4),
+             rgba(255,200,120,0.02) var(--sun-r5),
+             rgba(255,200,120,0)    var(--sun-r6)); }
+
+    /* just above horizon — natural red sunset */
+    96%  { left: 97vw; top: var(--sun-alt-low); opacity: 0.8;
+           background: radial-gradient(circle,
+             rgba(245,110,70,1)    0,
+             rgba(245,110,70,0.66) var(--sun-r1),
+             rgba(245,110,70,0.40) var(--sun-r2),
+             rgba(245,110,70,0.18) var(--sun-r3),
+             rgba(245,110,70,0.06) var(--sun-r4),
+             rgba(245,110,70,0.01) var(--sun-r5),
+             rgba(245,110,70,0)    var(--sun-r6)); }
+
+    /* gone — off-screen right */
+    100% { left: 110vw; top: var(--sun-horizon); opacity: 0;
+           background: radial-gradient(circle,
+             rgba(230,100,65,0.4) 0,
+             rgba(230,100,65,0)   var(--sun-r6)); }
+  }
+
+  /* Neutral white-gold sun — same arc, same opacities and timing as sunArc,
+     but every gradient stop uses the SAME warm-white colour rgb(255,250,220).
+     The bright disc + halo stays the same colour from horizon to noon to
+     horizon. Used when colour_mix is low (image filter does sunrise/sunset). */
+  @keyframes sunArcNeutral {
+    0%   { left: -10vw; top: var(--sun-horizon); opacity: 0;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.95) 0,
+             rgba(255,250,220,0.68) var(--sun-r1),
+             rgba(255,250,220,0.42) var(--sun-r2),
+             rgba(255,250,220,0.20) var(--sun-r3),
+             rgba(255,250,220,0.07) var(--sun-r4),
+             rgba(255,250,220,0.02) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    5%   { left:  2vw; top: var(--sun-alt-low); opacity: 0.85;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.70) var(--sun-r1),
+             rgba(255,250,220,0.44) var(--sun-r2), rgba(255,250,220,0.21) var(--sun-r3),
+             rgba(255,250,220,0.08) var(--sun-r4), rgba(255,250,220,0.02) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    11%  { left:  9vw; top: calc(var(--sun-horizon) - 22vh); opacity: 0.95;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.74) var(--sun-r1),
+             rgba(255,250,220,0.48) var(--sun-r2), rgba(255,250,220,0.24) var(--sun-r3),
+             rgba(255,250,220,0.09) var(--sun-r4), rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    17%  { left: 17vw; top: var(--sun-alt-mid); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.76) var(--sun-r1),
+             rgba(255,250,220,0.50) var(--sun-r2), rgba(255,250,220,0.26) var(--sun-r3),
+             rgba(255,250,220,0.10) var(--sun-r4), rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    23%  { left: 25vw; top: calc(var(--sun-alt-mid) - 12vh); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.78) var(--sun-r1),
+             rgba(255,250,220,0.52) var(--sun-r2), rgba(255,250,220,0.27) var(--sun-r3),
+             rgba(255,250,220,0.10) var(--sun-r4), rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    28%  { left: 33vw; top: var(--sun-alt-high); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.80) var(--sun-r1),
+             rgba(255,250,220,0.55) var(--sun-r2), rgba(255,250,220,0.30) var(--sun-r3),
+             rgba(255,250,220,0.11) var(--sun-r4), rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    32%  { left: 40vw; top: calc(var(--sun-peak-altitude) + 3vh); opacity: 0.95;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.95) 0, rgba(255,250,220,0.74) var(--sun-r1),
+             rgba(255,250,220,0.52) var(--sun-r2), rgba(255,250,220,0.29) var(--sun-r3),
+             rgba(255,250,220,0.11) var(--sun-r4), rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    42%  { left: 47vw; top: calc(var(--sun-peak-altitude) + 1vh); opacity: 0.88;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.92) 0, rgba(255,250,220,0.72) var(--sun-r1),
+             rgba(255,250,220,0.51) var(--sun-r2), rgba(255,250,220,0.29) var(--sun-r3),
+             rgba(255,250,220,0.11) var(--sun-r4), rgba(255,250,220,0.04) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    52%  { left: 52vw; top: var(--sun-peak-altitude); opacity: 0.85;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.92) 0, rgba(255,250,220,0.74) var(--sun-r1),
+             rgba(255,250,220,0.52) var(--sun-r2), rgba(255,250,220,0.30) var(--sun-r3),
+             rgba(255,250,220,0.12) var(--sun-r4), rgba(255,250,220,0.04) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    62%  { left: 58vw; top: calc(var(--sun-peak-altitude) + 1vh); opacity: 0.88;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.92) 0, rgba(255,250,220,0.72) var(--sun-r1),
+             rgba(255,250,220,0.51) var(--sun-r2), rgba(255,250,220,0.29) var(--sun-r3),
+             rgba(255,250,220,0.11) var(--sun-r4), rgba(255,250,220,0.04) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    72%  { left: 64vw; top: calc(var(--sun-peak-altitude) + 3vh); opacity: 0.92;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.95) 0, rgba(255,250,220,0.74) var(--sun-r1),
+             rgba(255,250,220,0.52) var(--sun-r2), rgba(255,250,220,0.29) var(--sun-r3),
+             rgba(255,250,220,0.11) var(--sun-r4), rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    77%  { left: 71vw; top: var(--sun-alt-high); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.78) var(--sun-r1),
+             rgba(255,250,220,0.54) var(--sun-r2), rgba(255,250,220,0.30) var(--sun-r3),
+             rgba(255,250,220,0.12) var(--sun-r4), rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    82%  { left: 78vw; top: calc(var(--sun-alt-mid) - 8vh); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.76) var(--sun-r1),
+             rgba(255,250,220,0.52) var(--sun-r2), rgba(255,250,220,0.28) var(--sun-r3),
+             rgba(255,250,220,0.10) var(--sun-r4), rgba(255,250,220,0.03) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    87%  { left: 85vw; top: var(--sun-alt-mid); opacity: 1;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.74) var(--sun-r1),
+             rgba(255,250,220,0.48) var(--sun-r2), rgba(255,250,220,0.24) var(--sun-r3),
+             rgba(255,250,220,0.09) var(--sun-r4), rgba(255,250,220,0.02) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    92%  { left: 91vw; top: calc(var(--sun-horizon) - 22vh); opacity: 0.95;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.70) var(--sun-r1),
+             rgba(255,250,220,0.44) var(--sun-r2), rgba(255,250,220,0.21) var(--sun-r3),
+             rgba(255,250,220,0.07) var(--sun-r4), rgba(255,250,220,0.02) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    96%  { left: 97vw; top: var(--sun-alt-low); opacity: 0.8;
+           background: radial-gradient(circle,
+             rgba(255,250,220,1) 0, rgba(255,250,220,0.66) var(--sun-r1),
+             rgba(255,250,220,0.40) var(--sun-r2), rgba(255,250,220,0.18) var(--sun-r3),
+             rgba(255,250,220,0.06) var(--sun-r4), rgba(255,250,220,0.01) var(--sun-r5),
+             rgba(255,250,220,0)    var(--sun-r6)); }
+    100% { left: 110vw; top: var(--sun-horizon); opacity: 0;
+           background: radial-gradient(circle,
+             rgba(255,250,220,0.4) 0, rgba(255,250,220,0) var(--sun-r6)); }
+  }
+
+  /* Brightness-only day cycle used on mobile. Same 30/40/30 day structure,
+     same plateau, but ONLY brightness() — no sepia, hue-rotate, saturate, no
+     blend modes, no sun. Cheap enough to run on phones at 60fps. */
+  @keyframes heroFadeMobile {
+    0%     { opacity: 0;   filter: brightness(0.10); }
+    0.2%   { opacity: 0.5; filter: brightness(0.25); }
+    0.4%   { opacity: 1;   filter: brightness(0.40); }
+    /* sunrise ramp (0.4 → 6.4%) */
+    1.6%   { opacity: 1;   filter: brightness(var(--sun-b1)); }
+    2.8%   { opacity: 1;   filter: brightness(var(--sun-b2)); }
+    4.0%   { opacity: 1;   filter: brightness(var(--sun-b3)); }
+    5.2%   { opacity: 1;   filter: brightness(var(--sun-b4)); }
+    6.4%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)); }
+    /* noon plateau (6.4 → 14.4%) */
+    14.4%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)); }
+    /* sunset ramp (14.4 → 19.6%) */
+    15.6%  { opacity: 1;   filter: brightness(var(--sun-b5)); }
+    16.8%  { opacity: 1;   filter: brightness(var(--sun-b4)); }
+    18.0%  { opacity: 1;   filter: brightness(var(--sun-b3)); }
+    19.2%  { opacity: 0.85; filter: brightness(var(--sun-b1)); }
+    19.6%  { opacity: 0.4; filter: brightness(0.32); }
+    20%    { opacity: 0;   filter: brightness(0.10); }
+    100%   { opacity: 0;   filter: brightness(0.10); }
+  }
+
+  /* Mobile: keep the day cycle (brightness only), drop the expensive sun + colour filters */
+  @media (max-width: 768px) {
+    .hero-slide { animation-name: heroFadeMobile; }
+    .hero-overlay {
+      background: linear-gradient(to bottom, rgba(8,16,26,0.45) 0%, rgba(8,16,26,0.35) 50%, rgba(8,16,26,0.55) 100%);
+    }
+    .hero-sun-layer { display: none; }
+  }
+
+  /* Respect users who prefer reduced motion — hide the moving sun */
+  @media (prefers-reduced-motion: reduce) {
+    .hero-sun-layer { display: none; }
+  }
+
+  .hero-inner {
+    max-width: 680px; margin: 0 auto;
+    text-align: center; position: relative; z-index: 2;
+  }
+
+  .stealth-tag {
+    display: inline-block;
+    font-size: 0.875rem; font-weight: 600; letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 40px;
+    text-transform: uppercase;
+  }
+
+  .hero-title {
+    font-size: clamp(2.25rem, 5.5vw, 3.75rem);
+    font-weight: 800; color: #ffffff;
+    line-height: 1.1; letter-spacing: -0.035em;
+    margin-bottom: 28px;
+  }
+  .hero-title em {
+    font-style: normal;
+    color: #6fcf97; /* soft green */
+  }
+
+  .hero-sub {
+    font-size: 1.125rem; color: rgba(255,255,255,0.85);
+    line-height: 1.75; max-width: 580px; margin: 0 auto 64px;
+  }
+
+  /* ── Contact form ── */
+  .contact-wrap {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 20px;
+    padding: 36px 40px;
+    text-align: left;
+    max-width: 520px; margin: 0 auto;
+    backdrop-filter: blur(8px);
+  }
+  .contact-label {
+    font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: rgba(255,255,255,0.35);
+    margin-bottom: 20px;
+  }
+  .contact-label span { color: #6fcf97; }
+
+  .role-tabs {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .role-tab {
+    padding: 7px 16px; border-radius: 100px;
+    font-size: 0.8125rem; font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: transparent; color: rgba(255,255,255,0.5);
+    cursor: pointer; transition: all 0.18s; font-family: inherit;
+  }
+  .role-tab:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.8); }
+  .role-tab.active {
+    background: #6fcf97; border-color: #6fcf97;
+    color: #0F1724; font-weight: 700;
+  }
+
+  .contact-row {
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .contact-input {
+    flex: 1; min-width: 180px;
+    padding: 11px 16px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    color: #fff; font-family: inherit; font-size: 0.9375rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  .contact-input::placeholder { color: rgba(255,255,255,0.55); }
+  .contact-input:focus, .role-tab:focus-visible, .contact-submit:focus-visible {
+    outline: 2px solid #6fcf97; outline-offset: 2px;
+    border-color: #6fcf97; background: rgba(255,255,255,0.09);
+  }
+  .consent-row {
+    display: flex; gap: 10px; margin: 16px 0 0;
+    font-size: 0.8125rem; color: rgba(255,255,255,0.78);
+    line-height: 1.55; align-items: flex-start;
+  }
+  .consent-row input[type="checkbox"] {
+    flex-shrink: 0; margin-top: 3px; width: 16px; height: 16px;
+    accent-color: #6fcf97; cursor: pointer;
+  }
+  .consent-row label { cursor: pointer; }
+  .consent-row a { color: #6fcf97; text-decoration: underline; text-underline-offset: 2px; }
+  .consent-row a:hover { color: #4db87e; }
+
+  .contact-submit {
+    padding: 11px 22px; border-radius: 10px;
+    background: #6fcf97; color: #0F1724;
+    font-family: inherit; font-size: 0.9375rem; font-weight: 700;
+    border: none; cursor: pointer; transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .contact-submit:hover { background: #4db87e; }
+  .contact-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .contact-success {
+    display: none; margin-top: 16px;
+    font-size: 0.9375rem; color: #fff; font-weight: 600;
+    background: rgba(26,122,74,0.6); border: 1px solid #6fcf97;
+    border-radius: 10px; padding: 12px 16px;
+  }
+  .contact-error {
+    display: none; margin-top: 16px;
+    font-size: 0.875rem; color: #fff;
+    background: rgba(180,30,30,0.5); border: 1px solid #ff7875;
+    border-radius: 10px; padding: 12px 16px;
+  }
+
+  /* ── Pillars ── */
+  .pillars {
+    background: #0d1620;
+    padding: 0;
+  }
+  .pillars-inner {
+    max-width: 100%; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+  }
+  .pillar {
+    padding: 52px 44px;
+    position: relative; overflow: hidden;
+  }
+  /* Individual pillar color washes */
+  .pillar:nth-child(1) { background: #0e1f14; }
+  .pillar:nth-child(2) { background: #0d1a22; }
+  .pillar:nth-child(3) { background: #131220; }
+  /* Subtle top accent line */
+  .pillar::before {
+    content: ''; position: absolute; top: 0; left: 44px; right: 44px;
+    height: 2px;
+  }
+  .pillar:nth-child(1)::before { background: linear-gradient(90deg, #1a7a4a, transparent); }
+  .pillar:nth-child(2)::before { background: linear-gradient(90deg, #2065D1, transparent); }
+  .pillar:nth-child(3)::before { background: linear-gradient(90deg, #8B5CF6, transparent); }
+
+  .pillar-title {
+    font-size: 1.0625rem; font-weight: 700; color: rgba(255,255,255,0.88);
+    margin-bottom: 14px; letter-spacing: -0.01em;
+  }
+  .pillar-body {
+    font-size: 0.9rem; color: rgba(255,255,255,0.72); line-height: 1.7;
+  }
+
+  /* "What we do" section — semantic, evaluator-readable */
+  .services {
+    background: #f5f8f5;
+    padding: 64px 40px;
+    border-top: 1px solid #d8e0d8;
+  }
+  .services-inner { max-width: 980px; margin: 0 auto; }
+  .services h2 {
+    font-size: 1.5rem; font-weight: 800; color: #1a2e1f;
+    margin: 0 0 12px 0; letter-spacing: -0.01em;
+  }
+  .services-intro {
+    font-size: 0.95rem; color: #3a4a3e; line-height: 1.7;
+    max-width: 720px; margin: 0 0 32px;
+  }
+  .services-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 14px 32px;
+    list-style: none; padding: 0; margin: 0;
+  }
+  .services-grid li {
+    font-size: 0.9rem; color: #2a3540; line-height: 1.6;
+    padding-left: 24px; position: relative;
+  }
+  .services-grid li::before {
+    content: "✓"; position: absolute; left: 0; top: 0;
+    color: #1a7a4a; font-weight: 700;
+  }
+  @media (max-width: 720px) {
+    .services { padding: 48px 24px; }
+    .services-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .pillars-inner { grid-template-columns: 1fr; }
+    .pillar { padding: 40px 28px; }
+    .pillar::before { left: 28px; right: 28px; }
+  }
+
+  /* ── Harmony section — deliberately light to break dark sequence ── */
+  .footnote {
+    background: #f0f4f0;
+    padding: 56px 40px;
+    border-top: 4px solid #1a7a4a;
+  }
+  .footnote-inner {
+    max-width: 780px; margin: 0 auto;
+    display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap;
+  }
+  .footnote-badge {
+    flex-shrink: 0;
+    background: #1a7a4a;
+    border-radius: 10px; padding: 10px 24px;
+    font-size: 0.75rem; font-weight: 800;
+    color: #fff; letter-spacing: 0.08em;
+    text-transform: uppercase; white-space: nowrap;
+    align-self: center;
+    line-height: 1.5; text-align: center;
+  }
+  .footnote-text {
+    font-size: 0.9375rem; color: #3a4a3e; line-height: 1.75;
+  }
+  .footnote-text strong { color: #1a2e1f; }
+  .footnote-text a { color: #1a7a4a; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ── Footer ── */
+  .site-footer {
+    background: #e4ebe4;
+    border-top: 1px solid rgba(26,122,74,0.18);
+    padding: 32px 40px; text-align: center;
+    font-size: 0.8rem; color: #4a5a50;
+  }
+  .site-footer a { color: #1a5a3a; text-decoration: underline; text-underline-offset: 2px; }
+  .site-footer a:hover { color: #0e3a24; }
+  .site-footer a:focus-visible { outline: 2px solid #1a7a4a; outline-offset: 2px; }
+
+  /* ── Language dropdown (in top nav, right side) ── */
+  .lang-dropdown { position: relative; }
+  .lang-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: var(--radius-sm);
+    border: 1px solid rgba(255,255,255,0.18);
+    background: transparent; color: rgba(255,255,255,0.85);
+    font-family: inherit; font-size: 0.875rem; font-weight: 600;
+    cursor: pointer; transition: all 0.18s; line-height: 1;
+  }
+  .lang-toggle:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .lang-toggle .lang-flag { font-size: 1.125rem; line-height: 1; }
+  .lang-toggle .chev { font-size: 0.7rem; opacity: 0.7; transition: transform 0.18s; }
+  .lang-dropdown.open .lang-toggle .chev { transform: rotate(180deg); }
+
+  .lang-menu {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    min-width: 160px;
+    background: rgba(15,23,36,0.96);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    display: none; z-index: 110;
+  }
+  .lang-dropdown.open .lang-menu { display: block; }
+  .lang-menu a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.875rem; font-weight: 500;
+    color: rgba(255,255,255,0.78);
+    transition: background 0.15s;
+  }
+  .lang-menu a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .lang-menu a.active { background: rgba(111,207,151,0.15); color: #6fcf97; font-weight: 700; }
+  .lang-menu .lang-flag { font-size: 1.125rem; line-height: 1; }
+  .lang-menu a .lang-name { flex: 1; }
+
+  @media (max-width: 600px) {
+    .hero { padding: 90px 20px 60px; }
+    .hero-title { margin-bottom: 20px; }
+    .hero-sub { margin-bottom: 36px; font-size: 1rem; }
+    .contact-wrap { padding: 24px 20px; }
+    .contact-row { flex-direction: column; }
+    .contact-submit { width: 100%; justify-content: center; }
+    .pillars { padding: 0; }
+    .pillars-inner { grid-template-columns: 1fr; }
+    .pillar { padding: 32px 24px; }
+  }
+</style>
+{% endblock %}
+
+{% block nav_action %}
+<div class="lang-dropdown" id="lang-dropdown">
+  <button class="lang-toggle" type="button" aria-haspopup="true" aria-expanded="false"
+          onclick="toggleLangMenu(event)">
+    <span class="lang-flag">{{ lang_labels[lang].flag }}</span>
+    <span>{{ lang_labels[lang].label }}</span>
+    <span class="chev">▾</span>
+  </button>
+  <div class="lang-menu" role="menu">
+    {% for code in supported_langs %}
+      <a href="/lang/{{ code }}?next=/"
+         class="{% if code == lang %}active{% endif %}"
+         hreflang="{{ code }}" role="menuitem">
+        <span class="lang-flag">{{ lang_labels[code].flag }}</span>
+        <span class="lang-name">{{ lang_labels[code].name }}</span>
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<a href="#main" class="skip-link" style="position:absolute;left:-9999px;top:0;background:#1a7a4a;color:#fff;padding:10px 16px;z-index:10000;border-radius:0 0 8px 0;font-weight:600;text-decoration:none;" onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">Skip to main content</a>
+
+<main id="main">
+<!-- Hero -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-slides" aria-hidden="true">
+    <div class="hero-slide"></div>
+    <div class="hero-slide"></div>
+    <div class="hero-slide"></div>
+    <div class="hero-slide"></div>
+    <div class="hero-slide"></div>
+  </div>
+  <div class="hero-overlay" aria-hidden="true"></div>
+  <div class="hero-sun-layer neutral" aria-hidden="true"><div class="hero-sun-neutral"></div></div>
+  <div class="hero-sun-layer coloured" aria-hidden="true"><div class="hero-sun"></div></div>
+  <div class="hero-inner" style="position:relative;z-index:2;">
+    <p class="stealth-tag">{{ t('index.stealth_tag') }}</p>
+    <h1 class="hero-title" id="hero-title">
+      {{ t('index.hero_title_line1') }}<br>
+      <em>{{ t('index.hero_title_line2') }}</em>
+    </h1>
+    <p class="hero-sub">
+      {{ t('index.hero_sub') }}
+    </p>
+
+    <!-- Contact form -->
+    <form class="contact-wrap" id="contact-form" onsubmit="event.preventDefault(); submitContact();" novalidate>
+      <p class="contact-label">{{ t('index.contact_label') }} <span>{{ t('index.contact_label_accent') }}</span></p>
+
+      <fieldset style="border:0;padding:0;margin:0;" class="role-tabs" role="radiogroup" aria-label="{{ t('index.contact_label_accent') }}">
+        <button type="button" class="role-tab active" data-role="landowner"  role="radio" aria-checked="true"  onclick="setRole(this)">{{ t('index.role_landowner') }}</button>
+        <button type="button" class="role-tab"        data-role="institutional_partner" role="radio" aria-checked="false" onclick="setRole(this)">{{ t('index.role_carbon_buyer') }}</button>
+        <button type="button" class="role-tab"        data-role="project_developer"     role="radio" aria-checked="false" onclick="setRole(this)">{{ t('index.role_project_developer') }}</button>
+        <button type="button" class="role-tab"        data-role="other"                 role="radio" aria-checked="false" onclick="setRole(this)">{{ t('index.role_other') }}</button>
+      </fieldset>
+
+      <div class="contact-row">
+        <label for="contact-email" style="position:absolute;left:-9999px;">{{ t('index.email_placeholder') }}</label>
+        <input class="contact-input" type="email" id="contact-email" name="email"
+               placeholder="{{ t('index.email_placeholder') }}" autocomplete="email"
+               required aria-required="true">
+        <button type="submit" class="contact-submit" id="contact-btn">
+          {{ t('index.submit_btn') }}
+        </button>
+      </div>
+
+      <div class="consent-row">
+        <input type="checkbox" id="contact-consent" name="consent" required aria-required="true">
+        <label for="contact-consent">
+          {% set consent = t('index.consent_label') %}
+          {% set consent = consent.replace('{privacy_open}', '<a href="' ~ t('index.footer_privacy_url') ~ '" target="_blank" rel="noopener">') %}
+          {% set consent = consent.replace('{privacy_close}', '</a>') %}
+          {{ consent | safe }}
+        </label>
+      </div>
+
+      <p class="contact-success" id="contact-success" role="status" aria-live="polite">
+        {{ t('index.submit_success') }}
+      </p>
+      <p class="contact-error" id="contact-error" role="alert" aria-live="assertive"></p>
+    </form>
+  </div>
+</section>
+
+<!-- "What we do" — for evaluators / due diligence -->
+<section class="services" aria-labelledby="services-title">
+  <div class="services-inner">
+    <h2 id="services-title">{{ t('index.what_we_do_title') }}</h2>
+    <p class="services-intro">{{ t('index.what_we_do_intro') }}</p>
+    <ul class="services-grid">
+      <li>{{ t('index.service1') }}</li>
+      <li>{{ t('index.service2') }}</li>
+      <li>{{ t('index.service3') }}</li>
+      <li>{{ t('index.service4') }}</li>
+      <li>{{ t('index.service5') }}</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Pillars -->
+<section class="pillars" aria-label="Activities">
+  <div class="pillars-inner">
+    <article class="pillar">
+      <h3 class="pillar-title">{{ t('index.pillar1_title') }}</h3>
+      <p class="pillar-body">{{ t('index.pillar1_body') }}</p>
+    </article>
+    <article class="pillar">
+      <h3 class="pillar-title">{{ t('index.pillar2_title') }}</h3>
+      <p class="pillar-body">{{ t('index.pillar2_body') }}</p>
+    </article>
+    <article class="pillar">
+      <h3 class="pillar-title">{{ t('index.pillar3_title') }}</h3>
+      <p class="pillar-body">{{ t('index.pillar3_body') }}</p>
+    </article>
+  </div>
+</section>
+
+<!-- HARMONY section -->
+<aside class="footnote" aria-label="EU research participation">
+  <div class="footnote-inner">
+    <div class="footnote-badge">{{ t('index.footnote_badge') }}</div>
+    <p class="footnote-text">
+      {{ t('index.footnote_text_html') | safe }}
+    </p>
+  </div>
+</aside>
+</main>
+
+<!-- Footer -->
+<footer class="site-footer" role="contentinfo">
+  <p>{{ t('index.footer_company') }}</p>
+  <p style="margin-top:8px;"><a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a></p>
+  <nav style="margin-top:14px;font-size:0.75rem;" aria-label="Legal">
+    <a href="{{ t('index.footer_imprint_url') }}">{{ t('index.footer_imprint') }}</a>
+    &nbsp;·&nbsp;
+    <a href="{{ t('index.footer_privacy_url') }}">{{ t('index.footer_privacy') }}</a>
+    &nbsp;·&nbsp;
+    <a href="/login">{{ t('index.footer_team_login') }}</a>
+  </nav>
+</footer>
+
+<script>
+  let currentRole = 'landowner';
+
+  function setRole(btn) {
+    document.querySelectorAll('.role-tab').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-checked', 'false');
+    });
+    btn.classList.add('active');
+    btn.setAttribute('aria-checked', 'true');
+    currentRole = btn.dataset.role;
+  }
+
+  // Arrow-key navigation for role radio group
+  document.querySelectorAll('.role-tab').forEach(tab => {
+    tab.addEventListener('keydown', (e) => {
+      const tabs = Array.from(document.querySelectorAll('.role-tab'));
+      const idx = tabs.indexOf(e.target);
+      let next = -1;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + tabs.length) % tabs.length;
+      if (next >= 0) { e.preventDefault(); tabs[next].focus(); setRole(tabs[next]); }
+    });
+  });
+
+  async function submitContact() {
+    const email   = document.getElementById('contact-email').value.trim();
+    const consent = document.getElementById('contact-consent').checked;
+    const btn     = document.getElementById('contact-btn');
+    const ok      = document.getElementById('contact-success');
+    const err     = document.getElementById('contact-error');
+
+    err.style.display = 'none';
+
+    if (!email || !email.includes('@')) {
+      err.textContent = {{ t('index.submit_error_invalid') | tojson }};
+      err.style.display = 'block'; return;
+    }
+    if (!consent) {
+      err.textContent = {{ ('Please confirm consent before sending.' if lang == 'en' else ('Bitte bestätigen Sie Ihre Einwilligung vor dem Senden.' if lang == 'de' else 'Si prega di confermare il consenso prima di inviare.')) | tojson }};
+      err.style.display = 'block'; return;
+    }
+
+    btn.disabled = true; btn.textContent = '...';
+
+    try {
+      const res = await fetch('/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role: currentRole, consent: true })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        ok.style.display = 'block';
+        document.getElementById('contact-email').value = '';
+        btn.style.display = 'none';
+        if (typeof gtag !== 'undefined') gtag('event', 'generate_lead', {role: currentRole});
+      } else {
+        throw new Error(json.error || 'error');
+      }
+    } catch (e) {
+      err.textContent = {{ t('index.submit_error_generic') | tojson }};
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = {{ t('index.submit_btn') | tojson }};
+    }
+  }
+
+  function toggleLangMenu(e) {
+    e.stopPropagation();
+    const dd = document.getElementById('lang-dropdown');
+    const open = dd.classList.toggle('open');
+    dd.querySelector('.lang-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  document.addEventListener('click', (e) => {
+    const dd = document.getElementById('lang-dropdown');
+    if (dd && !dd.contains(e.target)) {
+      dd.classList.remove('open');
+      dd.querySelector('.lang-toggle').setAttribute('aria-expanded', 'false');
+    }
+  });
+</script>
+{% endblock %}

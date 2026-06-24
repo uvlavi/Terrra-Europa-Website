@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}Admin — TERRRA Europa{% endblock %}
+
+{% block head %}
+<style>
+  .admin-page { min-height: 100vh; padding: 88px 24px 80px; background: var(--bg); }
+  .admin-inner { max-width: 980px; margin: 0 auto; }
+
+  .page-title { font-size: 1.5rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; margin-bottom: 4px; }
+  .page-sub   { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 28px; }
+
+  .flash { padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.9rem; font-weight: 500; }
+  .flash-ok  { background: #F6FFED; border: 1px solid #B7EB8F; color: #389E0D; }
+  .flash-err { background: #FFF2F0; border: 1px solid #FFCCC7; color: #CF1322; }
+
+  /* Section cards */
+  .section-card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-card); padding: 28px; margin-bottom: 28px;
+  }
+  .section-card h2 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+
+  /* Add user form */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 0.8125rem; font-weight: 600; color: var(--text); }
+  .form-label .hint { font-weight: 400; color: var(--text-muted); }
+  .form-input {
+    padding: 9px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); font-family: inherit; font-size: 0.9rem;
+    color: var(--text); background: var(--bg); outline: none; transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--primary); background: #fff; }
+  .email-suffix { font-size: 0.8125rem; color: var(--text-muted); white-space: nowrap; margin-left: 3px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; }
+  .checkbox-row input { width: 16px; height: 16px; cursor: pointer; }
+  .checkbox-row label { font-size: 0.875rem; color: var(--text); cursor: pointer; }
+
+  /* Buttons */
+  .btn { padding: 9px 20px; border-radius: var(--radius-sm); font-family: inherit; font-size: 0.875rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-sm { padding: 5px 12px; font-size: 0.8125rem; }
+  .btn-reset  { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+  .btn-reset:hover  { background: #ffe7ba; }
+  .btn-delete { background: #fff2f0; color: #cf1322; border: 1px solid #ffccc7; }
+  .btn-delete:hover { background: #ffccc7; }
+  .btn-save   { background: var(--primary-light); color: var(--primary); border: 1px solid rgba(32,101,209,0.25); }
+  .btn-save:hover { background: rgba(32,101,209,0.15); }
+  .btn-setup  { background: #f0f9f4; color: #1a7a4a; border: 1px solid #b7e4cb; }
+  .btn-setup:hover { background: #d9f2e6; }
+
+  /* Users table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  thead th {
+    text-align: left; padding: 10px 14px; font-size: 0.75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted);
+    border-bottom: 1px solid var(--border); background: var(--bg);
+  }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #fafafa; }
+
+  .inline-input {
+    padding: 5px 8px; border-radius: 6px; border: 1px solid transparent;
+    font-family: inherit; font-size: 0.875rem; color: var(--text);
+    background: transparent; width: 100%; min-width: 80px; transition: all 0.15s;
+  }
+  .inline-input:hover { border-color: var(--border); background: var(--bg); }
+  .inline-input:focus { border-color: var(--primary); background: #fff; outline: none; }
+
+  .badge-admin { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 0.7rem; font-weight: 700; background: #e8f5e9; color: #2e7d32; }
+  .badge-member { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 0.7rem; font-weight: 600; background: #f5f5f5; color: #616161; }
+
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  @media (max-width: 700px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full { grid-column: 1; }
+    .setup-cols { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block nav_action %}
+<div class="nav-action">
+  <a href="/compose">Compose</a>
+  <a href="/contacts">Contacts</a>
+  <a href="/admin/analytics">Analytics</a>
+  <a href="/admin/hero-sun">Hero sun</a>
+  <a href="/logout">Sign out</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+  <div class="admin-inner">
+
+    <h1 class="page-title">User Management</h1>
+    <p class="page-sub">Manage team accounts. Each user gets their own <strong>alias@{{ domain }}</strong> sending address and can receive email forwarded to their personal inbox.</p>
+
+    {% set qs = request.query_params %}
+    {% if qs.get('created') %}<div class="flash flash-ok">✓ User created — welcome email sent.</div>
+    {% elif qs.get('updated') %}<div class="flash flash-ok">✓ User updated.</div>
+    {% elif qs.get('reset') %}<div class="flash flash-ok">✓ Temporary password sent to user's recovery email.</div>
+    {% elif qs.get('setup_sent') %}<div class="flash flash-ok">✓ Gmail setup instructions sent.</div>
+    {% elif qs.get('deleted') %}<div class="flash flash-ok">✓ User deleted.</div>
+    {% elif qs.get('error') == 'exists' %}<div class="flash flash-err">Username already exists.</div>
+    {% elif qs.get('error') == 'self' %}<div class="flash flash-err">You cannot delete your own account.</div>
+    {% elif qs.get('error') == 'noemail' %}<div class="flash flash-err">No recovery email set for this user.</div>
+    {% endif %}
+
+    <!-- ── Add user ── -->
+    <div class="section-card">
+      <h2>Add new user</h2>
+      <form method="post" action="/admin/users">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="username">Username <span class="hint">(also their email — <code>username@{{ domain }}</code>)</span></label>
+            <input class="form-input" type="text" id="username" name="username" placeholder="e.g. pia" required autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="display_name">Display name</label>
+            <input class="form-input" type="text" id="display_name" name="display_name" placeholder="e.g. Pia Littmann" required>
+          </div>
+          <div class="form-group full">
+            <label class="form-label" for="external_email">Recovery / forwarding email <span class="hint">(personal Gmail)</span></label>
+            <input class="form-input" type="email" id="external_email" name="external_email" placeholder="pia@gmail.com" required>
+          </div>
+          <div class="form-group full">
+            <div class="checkbox-row">
+              <input type="checkbox" id="is_admin" name="is_admin" value="1">
+              <label for="is_admin">Admin (can access this page and manage users)</label>
+            </div>
+          </div>
+          <div class="form-group full">
+            <button type="submit" class="btn btn-primary">Create user &amp; send welcome email</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Users table ── -->
+    <div class="section-card" style="padding:0;overflow:hidden;">
+      <div style="padding:24px 24px 0;">
+        <h2 style="margin-bottom:16px;">Team members ({{ users|length }})</h2>
+      </div>
+      <!-- Action toolbar -->
+      <div style="padding:0 24px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span id="selected-label" style="font-size:0.8125rem;color:var(--text-muted);margin-right:6px;">
+          Select a user below to enable actions
+        </span>
+        <button type="button" id="btn-save"   class="btn btn-sm btn-save"   disabled onclick="doAction('save')">Save changes</button>
+        <button type="button" id="btn-reset"  class="btn btn-sm btn-reset"  disabled onclick="doAction('reset')">Send temp password</button>
+        <button type="button" id="btn-setup"  class="btn btn-sm btn-setup"  disabled onclick="doAction('send_setup')">Send setup instructions</button>
+        <button type="button" id="btn-delete" class="btn btn-sm btn-delete" disabled onclick="doAction('delete')">Delete user</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px;"></th>
+            <th>Username / Email</th>
+            <th>Display name</th>
+            <th>Recovery email</th>
+            <th>Role</th>
+            <th>Last login</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td><input type="radio" name="selected_user" value="{{ u.username }}"
+                       data-recovery="{{ u.external_email }}"
+                       data-is-self="{{ '1' if u.username == sender_name else '' }}"
+                       onchange="onSelect(this)" style="cursor:pointer;"></td>
+            <td>
+              <form method="post" action="/admin/users/{{ u.username }}/update" id="form-{{ u.username }}">
+                <input type="hidden" name="email_alias" value="{{ u.username }}">
+                <input type="hidden" name="is_admin" value="{{ '1' if u.is_admin else '' }}">
+                <strong>{{ u.username }}</strong>
+                <span style="color:var(--text-muted);">@{{ domain }}</span>
+            </td>
+            <td>
+              <input class="inline-input" type="text" name="display_name" value="{{ u.display_name }}">
+            </td>
+            <td>
+              <input class="inline-input" type="email" name="external_email" value="{{ u.external_email }}" style="min-width:160px;">
+              </form>
+            </td>
+            <td>
+              {% if u.is_admin %}<span class="badge-admin">Admin</span>
+              {% else %}<span class="badge-member">Member</span>{% endif %}
+            </td>
+            <td style="color:var(--text-muted);font-size:0.8125rem;">
+              {{ u.last_login[:10] if u.last_login else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Email setup link ── -->
+    <p style="margin-top:24px;font-size:0.9375rem;color:var(--text-secondary);">
+      Email setup steps for receiving and sending as <code>@{{ domain }}</code> are documented in the
+      <a href="/help" style="color:var(--primary);font-weight:600;">how-to guides</a>.
+    </p>
+
+  </div>
+</div>
+
+<script>
+let selectedUser    = null;
+let selectedRecov   = '';
+let selectedIsSelf  = false;
+
+function onSelect(radio) {
+  selectedUser   = radio.value;
+  selectedRecov  = radio.dataset.recovery || '';
+  selectedIsSelf = radio.dataset.isSelf === '1';
+  ['btn-save','btn-reset','btn-setup','btn-delete'].forEach(id =>
+    document.getElementById(id).disabled = false
+  );
+  // Can't delete yourself
+  document.getElementById('btn-delete').disabled = selectedIsSelf;
+  document.getElementById('selected-label').textContent =
+    'Selected: ' + selectedUser + (selectedIsSelf ? ' (you)' : '');
+}
+
+function doAction(kind) {
+  if (!selectedUser) return;
+  if (kind === 'save') {
+    document.getElementById('form-' + selectedUser).submit();
+    return;
+  }
+  let path, msg;
+  if (kind === 'reset')      { path = '/reset';       msg = 'Send temp password to ' + selectedRecov + '?'; }
+  if (kind === 'send_setup') { path = '/send_setup';  msg = 'Send setup instructions to ' + selectedRecov + '?'; }
+  if (kind === 'delete')     { path = '/delete';      msg = 'Delete user ' + selectedUser + '?'; }
+  if (!confirm(msg)) return;
+
+  const form = document.createElement('form');
+  form.method = 'post';
+  form.action = '/admin/users/' + selectedUser + path;
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
+{% endblock %}

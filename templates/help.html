@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}How-to Guides — TERRRA Europa{% endblock %}
+
+{% block head %}
+<style>
+  .help-page { min-height: 100vh; padding: 88px 24px 60px; background: var(--bg); }
+  .help-inner { max-width: 880px; margin: 0 auto; }
+
+  .page-title { font-size: 1.625rem; font-weight: 700; color: var(--text); letter-spacing: -0.025em; margin-bottom: 6px; }
+  .page-sub   { font-size: 0.9375rem; color: var(--text-secondary); margin-bottom: 36px; }
+
+  .guide {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-card); padding: 32px; margin-bottom: 24px;
+  }
+  .guide h2 {
+    font-size: 1.125rem; font-weight: 700; color: var(--text);
+    margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
+  }
+  .guide-sub { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 22px; }
+
+  .step-list { list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 12px; padding: 0; margin: 0; }
+  .step-list li { counter-increment: step; display: flex; gap: 12px; font-size: 0.9375rem; color: var(--text); line-height: 1.6; }
+  .step-list li::before {
+    content: counter(step); flex-shrink: 0;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #1a7a4a; color: #fff;
+    font-size: 0.8125rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+  .step-list li code {
+    background: #f0f4f0; padding: 2px 6px; border-radius: 4px;
+    font-size: 0.875rem; color: #1a4a2e; word-break: break-all;
+  }
+
+  .cred-box {
+    background: #f0f9f4; border: 1px solid #c8ecd8; border-radius: 10px;
+    padding: 16px 18px; margin-top: 18px;
+  }
+  .cred-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; border-bottom: 1px solid #d9f0e3; font-size: 0.875rem; gap: 10px; flex-wrap: wrap;
+  }
+  .cred-row:last-child { border-bottom: none; }
+  .cred-label { color: #637381; font-weight: 500; }
+  .cred-value {
+    font-family: monospace; font-weight: 600; color: #1a4a2e;
+    cursor: pointer; user-select: all; word-break: break-all;
+  }
+  .cred-value:hover { text-decoration: underline; }
+
+  .api-key-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .small-btn {
+    padding: 4px 12px; border-radius: 6px;
+    border: 1px solid #c8ecd8; background: #fff; color: #1a7a4a;
+    font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  }
+  .small-btn:hover { background: #f0f9f4; }
+
+  .note { font-size: 0.8125rem; color: var(--text-muted); margin-top: 12px; line-height: 1.55; }
+  .note strong { color: var(--text); }
+
+  @media (max-width: 600px) {
+    .guide { padding: 24px 20px; }
+    .cred-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  }
+</style>
+{% endblock %}
+
+{% block nav_action %}
+<div class="nav-action">
+  <a href="/">← Back</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="help-page">
+  <div class="help-inner">
+
+    <h1 class="page-title">How-to Guides</h1>
+    <p class="page-sub">Setup steps for the TERRRA Europa team site and email.</p>
+
+    <!-- Send as alias from Gmail -->
+    <div class="guide">
+      <h2>📤 Send mail as your @{{ domain }} address from Gmail</h2>
+      <p class="guide-sub">Each team member does this once in their own Gmail account.</p>
+
+      <ol class="step-list">
+        <li>Open Gmail → Settings (⚙) → <strong>See all settings</strong></li>
+        <li>Click the <strong>Accounts and Import</strong> tab</li>
+        <li>Under <em>"Send mail as"</em> click <strong>Add another email address</strong></li>
+        <li>Enter your name and your <code>alias@{{ domain }}</code> address</li>
+        <li>Untick <strong>"Treat as alias"</strong></li>
+        <li>Click <strong>Next Step</strong> and enter the SMTP credentials below</li>
+        <li>Gmail sends a verification email to <code>alias@{{ domain }}</code> — it will arrive in your personal Gmail (forwarded automatically) — click the confirmation link</li>
+        <li>Done. When composing in Gmail, pick <code>alias@{{ domain }}</code> from the <strong>From</strong> dropdown</li>
+      </ol>
+
+      <div class="cred-box">
+        <div class="cred-row"><span class="cred-label">SMTP server</span><span class="cred-value" onclick="copy(this,'smtp.resend.com')">smtp.resend.com</span></div>
+        <div class="cred-row"><span class="cred-label">Port</span><span class="cred-value" onclick="copy(this,'587')">587</span></div>
+        <div class="cred-row"><span class="cred-label">Username</span><span class="cred-value" onclick="copy(this,'resend')">resend</span></div>
+        <div class="cred-row">
+          <span class="cred-label">Password</span>
+          <span class="api-key-row">
+            <span class="cred-value" id="apikey-display">{{ resend_api_key[:8] }}••••••••••••••</span>
+            <button class="small-btn" onclick="toggleKey()" id="toggle-btn">Show</button>
+            <button class="small-btn" onclick="copy(document.getElementById('apikey-display'),'{{ resend_api_key }}')">Copy</button>
+          </span>
+        </div>
+        <div class="cred-row"><span class="cred-label">Security</span><span class="cred-value">STARTTLS / TLS</span></div>
+      </div>
+      <p class="note">Use the <strong>Copy</strong> button next to the password — don't copy the masked text directly.</p>
+    </div>
+
+    <!-- Receive (admin only really, but informational) -->
+    <div class="guide">
+      <h2>📥 Receiving mail at @{{ domain }}</h2>
+      <p class="guide-sub">How incoming mail reaches your inbox — set up once for the whole domain.</p>
+
+      <ol class="step-list">
+        <li>The team domain MX records route <code>*@{{ domain }}</code> to a forwarding service</li>
+        <li>Each team member's <code>alias@{{ domain }}</code> is configured to forward to their personal Gmail</li>
+        <li>Organisation aliases like <code>info@</code>, <code>sales@</code>, <code>receipts@</code> all forward to a shared inbox</li>
+        <li>You receive mail in your personal Gmail with full content and links — and can reply normally</li>
+      </ol>
+
+      <p class="note" style="margin-top:18px;">
+        <strong>To add or change a forwarding rule</strong> — ask an admin. They'll add the alias and confirm where it should forward to.
+      </p>
+    </div>
+
+    <!-- Sending from the website -->
+    <div class="guide">
+      <h2>✉️ Send mail from the team website</h2>
+      <p class="guide-sub">If you don't want to use Gmail, send directly from the site.</p>
+
+      <ol class="step-list">
+        <li>Log in at <a href="/login" style="color:var(--primary);">{{ '/login' }}</a></li>
+        <li>Click <strong>Compose</strong> in the top menu</li>
+        <li>Fill in To, Subject, Message — your alias is set automatically</li>
+        <li>Click <strong>Send</strong>. Replies will arrive in your personal Gmail.</li>
+      </ol>
+    </div>
+
+    <!-- Domain-level setup (admin reference) -->
+    <div class="guide">
+      <h2>⚙️ Domain-level setup (admin reference)</h2>
+      <p class="guide-sub">One-time setup for the whole domain. Only needed if migrating providers or adding a new domain.</p>
+
+      <strong style="font-size:0.875rem;color:#1a4a2e;display:block;margin-bottom:8px;">DNS records at GoDaddy:</strong>
+      <div style="background:#fff;border:1px solid #c8ecd8;border-radius:8px;padding:14px 16px;margin-bottom:18px;">
+        <div style="display:grid;grid-template-columns:60px 80px 1fr;gap:8px;font-family:monospace;font-size:0.8125rem;padding:6px 0;border-bottom:1px solid #f0f4f0;">
+          <span style="font-weight:700;color:#1a7a4a;background:#e8f5e9;padding:2px 6px;border-radius:4px;text-align:center;">MX</span>
+          <span style="color:#637381;">@</span>
+          <span style="word-break:break-all;">mx1.improvmx.com — priority 10</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 80px 1fr;gap:8px;font-family:monospace;font-size:0.8125rem;padding:6px 0;border-bottom:1px solid #f0f4f0;">
+          <span style="font-weight:700;color:#1a7a4a;background:#e8f5e9;padding:2px 6px;border-radius:4px;text-align:center;">MX</span>
+          <span style="color:#637381;">@</span>
+          <span style="word-break:break-all;">mx2.improvmx.com — priority 20</span>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 80px 1fr;gap:8px;font-family:monospace;font-size:0.8125rem;padding:6px 0;">
+          <span style="font-weight:700;color:#1a7a4a;background:#e8f5e9;padding:2px 6px;border-radius:4px;text-align:center;">TXT</span>
+          <span style="color:#637381;">@</span>
+          <span style="word-break:break-all;">v=spf1 include:spf.improvmx.com include:amazonses.com ~all</span>
+        </div>
+      </div>
+
+      <strong style="font-size:0.875rem;color:#1a4a2e;display:block;margin-bottom:8px;">ImprovMX aliases (at app.improvmx.com):</strong>
+      <p style="font-size:0.875rem;color:#637381;margin-bottom:10px;">
+        For each team member, create an alias matching their username pointing to their personal email.
+        Organisation aliases all forward to the wetlands inbox.
+      </p>
+      <div style="background:#fff;border:1px solid #c8ecd8;border-radius:8px;padding:14px 16px;font-family:monospace;font-size:0.8125rem;line-height:1.7;">
+        yuval@&nbsp;&nbsp;&nbsp;&nbsp;→ yuval.lavi@gmail.com<br>
+        {user}@&nbsp;&nbsp;&nbsp;&nbsp;→ {user's personal Gmail}<br>
+        info@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ wetlands.israel@gmail.com<br>
+        sales@&nbsp;&nbsp;&nbsp;&nbsp;→ wetlands.israel@gmail.com<br>
+        receipts@ → wetlands.israel@gmail.com<br>
+        contact@&nbsp;&nbsp;→ wetlands.israel@gmail.com<br>
+        *&nbsp;(catch-all) → wetlands.israel@gmail.com
+      </div>
+
+      <p class="note" style="margin-top:14px;">
+        Resend handles outbound (DKIM/SPF) for sending as <code>@{{ domain }}</code>.
+        Domain is verified in Resend dashboard, no MX changes needed for sending.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var _apiKeyVisible = false;
+var _apiKey = '{{ resend_api_key }}';
+var _apiKeyMasked = '{{ resend_api_key[:8] }}••••••••••••••';
+
+function toggleKey() {
+  _apiKeyVisible = !_apiKeyVisible;
+  document.getElementById('apikey-display').textContent = _apiKeyVisible ? _apiKey : _apiKeyMasked;
+  document.getElementById('toggle-btn').textContent = _apiKeyVisible ? 'Hide' : 'Show';
+}
+
+function copy(el, realValue) {
+  const text = realValue !== undefined ? realValue : el.textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = el.textContent;
+    el.textContent = '✓ Copied';
+    setTimeout(() => el.textContent = orig, 1200);
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Contacts — TERRRA Europa{% endblock %}
+
+{% block head %}
+<style>
+  .contacts-page {
+    min-height: 100vh; padding: 100px 24px 60px;
+    background: var(--bg);
+  }
+  .contacts-inner { max-width: 860px; margin: 0 auto; }
+
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; margin-bottom: 32px;
+  }
+  .page-title { font-size: 1.5rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .page-meta { font-size: 0.875rem; color: var(--text-muted); }
+
+  .stats-row {
+    display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px;
+  }
+  .stat-chip {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 18px;
+    font-size: 0.875rem; color: var(--text-secondary);
+  }
+  .stat-chip strong { color: var(--text); font-size: 1.125rem; }
+
+  .contacts-table-wrap {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-card); overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  thead th {
+    background: var(--bg); padding: 12px 20px;
+    text-align: left; font-size: 0.75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--text-muted); border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 14px 20px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--bg); }
+
+  .role-chip {
+    display: inline-block; padding: 3px 10px; border-radius: 100px;
+    font-size: 0.75rem; font-weight: 600;
+  }
+  .role-landowner      { background: #e8f5e9; color: #2e7d32; }
+  .role-institutional_partner { background: #e3f2fd; color: #1565c0; }
+  .role-carbon_buyer   { background: #e3f2fd; color: #1565c0; }
+  .role-project_developer { background: #f3e5f5; color: #6a1b9a; }
+  .role-nature_credit_buyer { background: #f3e5f5; color: #6a1b9a; }
+  .role-other          { background: #f5f5f5; color: #616161; }
+
+  .empty { padding: 48px; text-align: center; color: var(--text-muted); }
+
+  .export-btn {
+    padding: 8px 18px; border-radius: var(--radius-sm);
+    background: var(--primary); color: #fff; font-family: inherit;
+    font-size: 0.875rem; font-weight: 600; border: none; cursor: pointer;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .export-btn:hover { background: var(--primary-dark); }
+</style>
+{% endblock %}
+
+{% block nav_action %}
+<div class="nav-action">
+  {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
+  <a href="/compose">Compose</a>
+  {% if is_admin %}<a href="/admin/analytics">Analytics</a>{% endif %}
+  <a href="/logout">Sign out</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="contacts-page">
+  <div class="contacts-inner">
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Contacts</h1>
+        <p class="page-meta">People who left their details on terrra-europa.com</p>
+      </div>
+      <a href="/contacts/export" class="export-btn">
+        <iconify-icon icon="eva:download-fill"></iconify-icon>
+        Export CSV
+      </a>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-chip"><strong>{{ contacts|length }}</strong> total</div>
+      <div class="stat-chip"><strong>{{ counts.landowner or 0 }}</strong> landowners</div>
+      <div class="stat-chip"><strong>{{ (counts.institutional_partner or 0) + (counts.carbon_buyer or 0) }}</strong> institutional partners</div>
+      <div class="stat-chip"><strong>{{ counts.project_developer or 0 }}</strong> project developers</div>
+      <div class="stat-chip"><strong>{{ counts.other or 0 }}</strong> other</div>
+    </div>
+
+    <div class="contacts-table-wrap">
+      {% if contacts %}
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Visitor</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in contacts|reverse %}
+          <tr>
+            <td style="color:var(--text-muted);">{{ contacts|length - loop.index0 }}</td>
+            <td><a href="mailto:{{ c.email }}" style="color:var(--primary);text-decoration:none;">{{ c.email }}</a></td>
+            <td>
+              <span class="role-chip role-{{ c.role }}">
+                {{ c.role|replace('_', ' ')|title }}
+              </span>
+            </td>
+            <td>
+              {% if c.repeat_count and c.repeat_count > 1 %}
+                <span style="background:#fff7e6;color:#d46b08;border:1px solid #ffd591;padding:2px 8px;border-radius:100px;font-size:0.7rem;font-weight:700;" title="Same visitor submitted {{ c.repeat_count }} times">
+                  Repeat ×{{ c.repeat_count }}
+                </span>
+              {% elif c.visitor_id %}
+                <span style="color:var(--text-muted);font-size:0.75rem;font-family:monospace;" title="Visitor ID: {{ c.visitor_id }}">
+                  {{ c.visitor_id[:8] }}…
+                </span>
+              {% else %}
+                <span style="color:var(--text-muted);font-size:0.75rem;">—</span>
+              {% endif %}
+            </td>
+            <td style="color:var(--text-secondary);">{{ c.ts[:10] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">No contacts yet — share the site and they'll appear here.</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

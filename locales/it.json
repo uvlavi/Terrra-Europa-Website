@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "language": "Italiano",
+    "code": "it",
+    "scope": "Public landing page only (/).",
+    "review_status": "DRAFT — needs professional review by a native Italian translator before going live in marketing.",
+    "note": "Mirrors locales/en.json. Keep keys identical when revising."
+  },
+
+  "index": {
+    "page_title": "TERRRA Europa — Restauro ambientale e sviluppo progetti",
+    "meta_description": "TERRRA Europa UG, con sede ad Amburgo, è una società di sviluppo progetti e consulenza ambientale. Sosteniamo il restauro degli ecosistemi, l'uso rigenerativo del suolo e la cooperazione di ricerca europea.",
+
+    "stealth_tag": "Restauro ambientale · Sviluppo progetti · Cooperazione di ricerca",
+    "hero_title_line1": "Lasciare che la natura",
+    "hero_title_line2": "si risani.",
+    "hero_sub": "TERRRA Europa è una società di sviluppo progetti e consulenza ambientale. Sosteniamo proprietari terrieri, enti pubblici, università e ONG nel restauro di terre marginali europee — attraverso studi di fattibilità, progettazione, monitoraggio scientifico e cooperazione di ricerca a livello UE.",
+
+    "contact_label": "Contattateci.",
+    "contact_label_accent": "Diteci come possiamo aiutarvi.",
+    "role_landowner": "Proprietario / gestore terriero",
+    "role_carbon_buyer": "Partner istituzionale",
+    "role_project_developer": "Sviluppatore di progetti",
+    "role_other": "Altro",
+    "email_placeholder": "tuo@email.com",
+    "submit_btn": "Invia",
+    "submit_success": "✓ Grazie. Risponderemo via e-mail quando rilevante.",
+    "submit_error_invalid": "Inserisci un indirizzo email valido.",
+    "submit_error_generic": "Qualcosa è andato storto — scrivici direttamente a info@terrra-europa.com",
+    "consent_label": "Acconsento al trattamento del mio indirizzo e-mail e del ruolo selezionato da parte di TERRRA Europa al fine di rispondere alla mia richiesta, in conformità con l'{privacy_open}informativa privacy{privacy_close}.",
+
+    "pillar1_title": "Sviluppo progetti",
+    "pillar1_body": "Studi di fattibilità, progettazione e pianificazione dell'attuazione per progetti di restauro ambientale e uso rigenerativo del suolo. Lavoriamo con proprietari terrieri, enti pubblici e partner agricoli in tutta Europa.",
+    "pillar2_title": "Monitoraggio scientifico",
+    "pillar2_body": "Monitoraggio ambientale indipendente e supportato da sensori dei risultati di restauro — indicatori di suolo, acqua e vegetazione. Dati di livello scientifico in linea con gli standard UE di rendicontazione ambientale, per titolari di progetto, enti pubblici e partner di ricerca.",
+    "pillar3_title": "Ricerca e innovazione",
+    "pillar3_body": "Coordinamento di progetti di ricerca e innovazione finanziati da grant, inclusi i programmi di ricerca UE, in cooperazione con università, enti pubblici, ONG e partner del settore privato.",
+
+    "what_we_do_title": "Cosa facciamo",
+    "what_we_do_intro": "TERRRA Europa supporta la progettazione, il monitoraggio scientifico e il coordinamento di progetti di restauro ambientale in Europa.",
+    "service1": "Consulenza per sostenibilità e uso del suolo per proprietari terrieri, enti pubblici e ONG",
+    "service2": "Studi di fattibilità e progettazione di progetti di restauro e agricoltura rigenerativa",
+    "service3": "Monitoraggio ambientale indipendente (suolo, acqua, vegetazione) e reportistica",
+    "service4": "Pianificazione dell'attuazione, coordinamento dei partner e partecipazione a programmi europei di ricerca, innovazione e finanziamento",
+    "service5": "Cooperazione con partner agricoli, università e istituti di ricerca",
+
+    "footnote_badge": "HARMONY · EIC Pathfinder Open 2026 (proposta presentata, non finanziata)",
+    "footnote_text_html": "TERRRA Europa è indicata come partner proposto in una <strong>candidatura del consorzio HARMONY presentata</strong> all'<strong>EIC Pathfinder Open 2026</strong> (proposta ID 101353239, esito previsto Q4 2026). Il consorzio propone MRV basato su sensori per torbiere di clima caldo, con <strong>8 istituzioni in 5 paesi</strong>. <em>Si tratta di una proposta presentata — il finanziamento non è stato concesso.</em>",
+
+    "revenue_model": "I nostri ricavi derivano da servizi di sviluppo progetti, contratti di monitoraggio scientifico, consulenza per la sostenibilità e finanziamenti europei alla ricerca. Forniamo esclusivamente servizi tecnici, scientifici e di consulenza; non partecipiamo economicamente ai proventi di certificati ambientali, crediti o quote di emissione e non operiamo come intermediari, depositari o agenti di trasferimento per tali strumenti.",
+    "compliance_note": "TERRRA Europa sviluppa e monitora progetti di restauro degli ecosistemi. Non emettiamo, registriamo, intermediamo, vendiamo, trasferiamo o tokenizziamo crediti di carbonio, crediti di biodiversità o quote di emissione, né riceviamo proventi da essi; non gestiamo inoltre marketplace, borse, intermediazioni, piattaforme di trading o servizi finanziari.",
+    "footer_company": "TERRRA Europa UG (haftungsbeschränkt) i. G. · Moorfuhrtweg 4, 22301 Hamburg · Germania",
+    "footer_team_login": "Accesso del team",
+    "footer_imprint": "Note legali",
+    "footer_privacy": "Privacy",
+    "footer_imprint_url": "/note-legali",
+    "footer_privacy_url": "/privacy-it",
+    "cookie_text": "Utilizziamo un cookie tecnicamente necessario per memorizzare la lingua scelta. Vorremmo anche usare Google Analytics per capire l'utilizzo del sito — la scelta è vostra.",
+    "cookie_accept": "Accetta tutto",
+    "cookie_reject": "Rifiuta tutto",
+    "cookie_link": "Maggiori dettagli nell'informativa privacy"
+  }
+}

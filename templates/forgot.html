@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Forgot Password — TERRRA Europa{% endblock %}
+
+{% block head %}
+<style>
+  .auth-page {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--hero-bg); padding: 80px 24px 40px;
+  }
+  .auth-card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-card); padding: 40px;
+    width: 100%; max-width: 400px;
+  }
+  .auth-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .auth-logo img { width: 32px; height: 32px; }
+  .auth-logo-text { font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: 0.07em; text-transform: uppercase; }
+  .auth-title { font-size: 1.375rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .auth-sub { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 28px; }
+  .form-group { margin-bottom: 18px; }
+  .form-label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text); margin-bottom: 7px; }
+  .form-input {
+    width: 100%; padding: 11px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); font-family: inherit; font-size: 0.9375rem;
+    color: var(--text); background: var(--bg); outline: none; transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--primary); background: #fff; }
+  .submit-btn {
+    width: 100%; padding: 13px; border-radius: var(--radius-sm);
+    background: var(--primary); color: #fff; font-family: inherit;
+    font-size: 0.9375rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s;
+  }
+  .submit-btn:hover { background: var(--primary-dark); }
+  .success-banner {
+    background: #F6FFED; border: 1px solid #B7EB8F; border-radius: var(--radius-sm);
+    padding: 16px; font-size: 0.9375rem; color: #389E0D; margin-bottom: 20px;
+  }
+  .auth-footer { margin-top: 20px; text-align: center; font-size: 0.875rem; }
+  .auth-footer a { color: var(--primary); text-decoration: none; }
+</style>
+{% endblock %}
+
+{% block nav_action %}
+<div class="nav-action"><a href="/login">← Back to login</a></div>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="/static/logo/terrra-logo-green.png" alt="TERRRA Europa">
+      <span class="auth-logo-text">TERRRA EUROPA</span>
+    </div>
+    <h1 class="auth-title">Get a new password</h1>
+    <p class="auth-sub">Enter your username. If it exists in the system, a temporary password will be sent to your registered email.</p>
+
+    {% if sent %}
+    <div class="success-banner">
+      ✓ If that username exists, a temporary password has been sent. Check your inbox.
+    </div>
+    <div class="auth-footer"><a href="/login">Back to login →</a></div>
+    {% else %}
+    <form method="post" action="/forgot">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" name="username"
+               placeholder="your username" required autofocus autocomplete="username">
+      </div>
+      <button type="submit" class="submit-btn">Send temporary password</button>
+    </form>
+    <div class="auth-footer"><a href="/login">← Back to login</a></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Compose — TERRRA Europa{% endblock %}
+
+{% block head %}
+<style>
+  .compose-page {
+    min-height: 100vh; padding: 100px 24px 60px;
+    background: var(--bg);
+  }
+  .compose-inner { max-width: 700px; margin: 0 auto; }
+
+  .page-header { margin-bottom: 32px; }
+  .page-header-top {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    margin-bottom: 4px;
+  }
+  .page-title { font-size: 1.5rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .page-subtitle { font-size: 0.9375rem; color: var(--text-secondary); }
+  .logout-link {
+    font-size: 0.875rem; color: var(--text-secondary); text-decoration: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .logout-link:hover { color: var(--text); }
+
+  .from-badge {
+    background: var(--primary-light); border: 1px solid rgba(32,101,209,0.2);
+    border-radius: var(--radius-sm); padding: 10px 16px;
+    font-size: 0.875rem; color: var(--primary); font-weight: 500;
+    margin-bottom: 24px; display: flex; align-items: center; gap: 8px;
+  }
+
+  .compose-card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-card); padding: 32px;
+  }
+
+  .form-group { margin-bottom: 20px; }
+  .form-label {
+    display: block; font-size: 0.875rem; font-weight: 600;
+    color: var(--text); margin-bottom: 8px;
+  }
+  .form-label .optional { font-weight: 400; color: var(--text-muted); margin-left: 4px; }
+  .form-input, .form-textarea {
+    width: 100%; padding: 11px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); font-family: inherit; font-size: 0.9375rem;
+    color: var(--text); background: var(--bg); transition: border-color 0.2s;
+    outline: none;
+  }
+  .form-input:focus, .form-textarea:focus { border-color: var(--primary); background: #fff; }
+  .form-input::placeholder, .form-textarea::placeholder { color: var(--text-muted); }
+  .form-textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
+
+  .form-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0 20px; }
+
+  .form-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .send-btn {
+    padding: 12px 28px; border-radius: var(--radius-sm);
+    background: var(--primary); color: #fff; font-family: inherit;
+    font-size: 0.9375rem; font-weight: 600; border: none; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+  }
+  .send-btn:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); }
+  .send-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+  .clear-btn {
+    padding: 12px 20px; border-radius: var(--radius-sm);
+    background: transparent; color: var(--text-secondary); font-family: inherit;
+    font-size: 0.9375rem; font-weight: 500; border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .clear-btn:hover { background: var(--bg); color: var(--text); }
+
+  .status-msg {
+    margin-top: 20px; padding: 14px 16px; border-radius: var(--radius-sm);
+    font-size: 0.9375rem; font-weight: 500; display: none; align-items: center; gap: 8px;
+  }
+  .status-msg.success { background: #F6FFED; border: 1px solid #B7EB8F; color: #389E0D; display: flex; }
+  .status-msg.error   { background: #FFF2F0; border: 1px solid #FFCCC7; color: #CF1322; display: flex; }
+
+  /* Send log */
+  .log-section { margin-top: 40px; }
+  .log-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+  .log-empty { font-size: 0.9375rem; color: var(--text-muted); }
+  .log-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .log-table th {
+    text-align: left; padding: 8px 12px; font-weight: 600; color: var(--text-muted);
+    border-bottom: 2px solid var(--border); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .log-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+  .log-table td:first-child { color: var(--text-muted); font-size: 0.8125rem; white-space: nowrap; }
+  .log-ok   { color: #389E0D; font-weight: 600; }
+  .log-fail { color: #CF1322; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block nav_action %}
+<div class="nav-action">
+  {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
+  <a href="/contacts">Contacts</a>
+  {% if is_admin %}<a href="/admin/analytics">Analytics</a>{% endif %}
+  <a href="/logout">Sign out</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="compose-page">
+  <div class="compose-inner">
+
+    <div class="page-header">
+      <div class="page-header-top">
+        <h1 class="page-title">Compose email</h1>
+      </div>
+      <p class="page-subtitle">Sending as <strong>{{ sender_name }}</strong> via TERRRA Europa</p>
+    </div>
+
+    <div class="from-badge">
+      <iconify-icon icon="eva:email-fill"></iconify-icon>
+      From: {{ sender_name }} &lt;{{ from_email }}&gt;
+    </div>
+
+    <div class="compose-card">
+      <form id="compose-form">
+        <div class="form-group">
+          <label class="form-label" for="to">To</label>
+          <input class="form-input" type="email" id="to" name="to"
+                 placeholder="recipient@example.com" required value="{{ prefill_to }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reply_to">
+            Reply-To <span class="optional">(optional — defaults to {{ from_email }})</span>
+          </label>
+          <input class="form-input" type="email" id="reply_to" name="reply_to"
+                 placeholder="your-personal@email.com">
+        </div>
+        <hr class="form-divider">
+        <div class="form-group">
+          <label class="form-label" for="subject">Subject</label>
+          <input class="form-input" type="text" id="subject" name="subject"
+                 placeholder="Re: HARMONY consortium inquiry" required value="{{ prefill_subj }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="body">Message</label>
+          <textarea class="form-textarea" id="body" name="body"
+                    placeholder="Write your message here…" required></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="send-btn" id="send-btn">
+            <iconify-icon icon="eva:paper-plane-fill" id="send-icon"></iconify-icon>
+            <span id="send-label">Send email</span>
+          </button>
+          <button type="button" class="clear-btn" onclick="clearForm()">Clear</button>
+        </div>
+        <div class="status-msg" id="status-msg">
+          <iconify-icon id="status-icon"></iconify-icon>
+          <span id="status-text"></span>
+        </div>
+      </form>
+    </div>
+
+    <!-- Send log -->
+    <div class="log-section">
+      <div class="log-title">Recent sends</div>
+      <div id="log-container"><div class="log-empty">No emails sent yet this session.</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const sentLog = [];
+
+  document.getElementById('compose-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('send-btn');
+    const label = document.getElementById('send-label');
+    const icon = document.getElementById('send-icon');
+    btn.disabled = true;
+    label.textContent = 'Sending…';
+    icon.setAttribute('icon', 'eva:loader-outline');
+
+    const data = new FormData(e.target);
+    try {
+      const res = await fetch('/send', { method: 'POST', body: data });
+      const json = await res.json();
+      if (json.ok) {
+        showStatus('success', 'Email sent successfully.');
+        sentLog.unshift({
+          ts: new Date().toLocaleString(),
+          to: data.get('to'),
+          subject: data.get('subject'),
+          ok: true
+        });
+        document.getElementById('subject').value = '';
+        document.getElementById('body').value = '';
+        document.getElementById('to').value = '';
+        document.getElementById('reply_to').value = '';
+      } else {
+        showStatus('error', json.error || 'Send failed. Check provider config.');
+        sentLog.unshift({
+          ts: new Date().toLocaleString(),
+          to: data.get('to'),
+          subject: data.get('subject'),
+          ok: false,
+          error: json.error
+        });
+      }
+    } catch (err) {
+      showStatus('error', 'Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      label.textContent = 'Send email';
+      icon.setAttribute('icon', 'eva:paper-plane-fill');
+      renderLog();
+    }
+  });
+
+  function showStatus(type, msg) {
+    const el = document.getElementById('status-msg');
+    const icon = document.getElementById('status-icon');
+    const text = document.getElementById('status-text');
+    el.className = 'status-msg ' + type;
+    icon.setAttribute('icon', type === 'success' ? 'eva:checkmark-circle-2-fill' : 'eva:alert-circle-fill');
+    text.textContent = msg;
+  }
+
+  function clearForm() {
+    document.getElementById('compose-form').reset();
+    const el = document.getElementById('status-msg');
+    el.className = 'status-msg';
+  }
+
+  function renderLog() {
+    const container = document.getElementById('log-container');
+    if (!sentLog.length) {
+      container.innerHTML = '<div class="log-empty">No emails sent yet this session.</div>';
+      return;
+    }
+    const rows = sentLog.map(e => `
+      <tr>
+        <td>${e.ts}</td>
+        <td>${escHtml(e.to)}</td>
+        <td>${escHtml(e.subject)}</td>
+        <td class="${e.ok ? 'log-ok' : 'log-fail'}">${e.ok ? '✓ Sent' : '✗ ' + (e.error || 'Failed')}</td>
+      </tr>`).join('');
+    container.innerHTML = `
+      <table class="log-table">
+        <thead><tr><th>Time</th><th>To</th><th>Subject</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+{% endblock %}

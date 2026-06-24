@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Login — TERRRA Europa{% endblock %}
+
+{% block head %}
+<style>
+  .auth-page {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--hero-bg); padding: 80px 24px 40px;
+  }
+  .auth-card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-card); padding: 40px;
+    width: 100%; max-width: 400px;
+  }
+  .auth-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .auth-logo img { width: 32px; height: 32px; }
+  .auth-logo-text { font-size: 1rem; font-weight: 800; color: var(--text); letter-spacing: 0.07em; text-transform: uppercase; }
+  .auth-title { font-size: 1.375rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .auth-sub { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 28px; }
+  .form-group { margin-bottom: 18px; }
+  .form-label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text); margin-bottom: 7px; }
+  .form-input {
+    width: 100%; padding: 11px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); font-family: inherit; font-size: 0.9375rem;
+    color: var(--text); background: var(--bg); outline: none; transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--primary); background: #fff; }
+  .error-banner {
+    background: #FFF2F0; border: 1px solid #FFCCC7; border-radius: var(--radius-sm);
+    padding: 11px 14px; margin-bottom: 20px; font-size: 0.875rem; color: #CF1322;
+  }
+  .submit-btn {
+    width: 100%; padding: 13px; border-radius: var(--radius-sm);
+    background: var(--primary); color: #fff; font-family: inherit;
+    font-size: 0.9375rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s;
+  }
+  .submit-btn:hover { background: var(--primary-dark); }
+  .auth-footer { margin-top: 20px; text-align: center; font-size: 0.875rem; color: var(--text-muted); }
+  .auth-footer a { color: var(--primary); text-decoration: none; }
+</style>
+{% endblock %}
+
+{% block nav_action %}
+<div class="nav-action"><a href="/">← Back</a></div>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="/static/logo/terrra-logo-green.png" alt="TERRRA Europa">
+      <span class="auth-logo-text">TERRRA EUROPA</span>
+    </div>
+    <h1 class="auth-title">Team login</h1>
+    <p class="auth-sub">Sign in to your TERRRA Europa account.</p>
+
+    {% if error == "credentials" %}
+    <div class="error-banner">Incorrect username or password. Please try again.</div>
+    {% endif %}
+
+    <form method="post" action="/login">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" name="username"
+               placeholder="your username" required autofocus autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" name="password"
+               placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="submit-btn">Sign in</button>
+    </form>
+    <div class="auth-footer">
+      <a href="/forgot">Forgot password or want a new one?</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

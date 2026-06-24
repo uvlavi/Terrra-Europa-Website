@@ -1,0 +1,62 @@
+{
+  "_meta": {
+    "language": "English",
+    "code": "en",
+    "scope": "Public landing page only (/). Team-area pages remain in English by design.",
+    "note": "This is the canonical source. de.json and it.json mirror these keys."
+  },
+
+  "index": {
+    "page_title": "TERRRA Europa — Environmental restoration & project development",
+    "meta_description": "TERRRA Europa UG is a Hamburg-based environmental project development and consulting company supporting ecosystem restoration, regenerative land use, and EU research collaboration.",
+
+    "stealth_tag": "Environmental restoration · Project development · Research cooperation",
+    "hero_title_line1": "Letting nature",
+    "hero_title_line2": "heal herself.",
+    "hero_sub": "TERRRA Europa is an environmental project development and consulting company. We support landowners, public bodies, universities and NGOs in restoring marginal European lands — through feasibility studies, project design, scientific monitoring, and EU research cooperation.",
+
+    "contact_label": "Get in touch.",
+    "contact_label_accent": "Let us know how we can help.",
+    "role_landowner": "Landowner / land manager",
+    "role_carbon_buyer": "Institutional partner",
+    "role_project_developer": "Project developer",
+    "role_other": "Other",
+    "email_placeholder": "your@email.com",
+    "submit_btn": "Send",
+    "submit_success": "✓ Thank you. We will reply by email when relevant.",
+    "submit_error_invalid": "Please enter a valid email address.",
+    "submit_error_generic": "Something went wrong — please email us directly at info@terrra-europa.com",
+    "consent_label": "I consent to TERRRA Europa storing my email address and selected role for the purpose of replying to my enquiry, in accordance with the {privacy_open}privacy policy{privacy_close}.",
+
+    "pillar1_title": "Project development",
+    "pillar1_body": "Feasibility studies, project design, and implementation planning for environmental restoration and regenerative land-use projects. We work with landowners, public bodies, and farming partners across Europe.",
+    "pillar2_title": "Scientific monitoring",
+    "pillar2_body": "Independent, sensor-supported environmental monitoring of restoration outcomes — soil, water, and vegetation indicators. Scientific-grade data aligned with EU environmental reporting standards, for project owners, public authorities, and research partners.",
+    "pillar3_title": "Research & innovation",
+    "pillar3_body": "Coordination of grant-funded research and innovation projects, including EU research programmes, in cooperation with universities, public authorities, NGOs, and private-sector partners.",
+
+    "what_we_do_title": "What we do",
+    "what_we_do_intro": "TERRRA Europa supports the design, scientific monitoring, and coordination of environmental restoration projects in Europe.",
+    "service1": "Sustainability and land-use consulting for landowners, public bodies and NGOs",
+    "service2": "Feasibility studies and project design for restoration and regenerative-agriculture projects",
+    "service3": "Independent environmental monitoring (soil, water, vegetation) and reporting",
+    "service4": "Implementation planning, partner coordination, and participation in European research, innovation and grant-funded programmes",
+    "service5": "Cooperation with agricultural partners, universities, and research institutions",
+
+    "footnote_badge": "HARMONY · EIC Pathfinder Open 2026 (proposal submitted, not awarded)",
+    "footnote_text_html": "TERRRA Europa is listed as a proposed partner in a <strong>submitted HARMONY consortium application</strong> to <strong>EIC Pathfinder Open 2026</strong> (proposal ID 101353239, decision expected Q4 2026). The consortium proposes sensor-driven MRV for warm-climate peatlands across <strong>8 institutions in 5 countries</strong>. <em>This is a submitted proposal — funding has not been awarded.</em>",
+
+    "revenue_model": "Our revenue comes from project-development services, scientific monitoring contracts, sustainability consulting, and EU research funding. We provide technical, scientific and consulting services only; we do not participate economically in any environmental certificate, credit or allowance proceeds, and do not act as broker, custodian, or transfer agent for such instruments.",
+    "compliance_note": "TERRRA Europa develops and monitors ecosystem restoration projects. We do not issue, register, broker, sell, assign, tokenize, or receive proceeds from carbon credits, biodiversity credits, or emission allowances; nor do we operate a marketplace, exchange, brokerage, trading platform, or financial service.",
+    "footer_company": "TERRRA Europa UG (haftungsbeschränkt) i. G. · Moorfuhrtweg 4, 22301 Hamburg · Germany",
+    "footer_team_login": "Team Login",
+    "footer_imprint": "Legal notice",
+    "footer_privacy": "Privacy policy",
+    "footer_imprint_url": "/imprint",
+    "footer_privacy_url": "/privacy",
+    "cookie_text": "We use a strictly necessary cookie to remember your language. We'd also like to use Google Analytics to understand site usage — your choice.",
+    "cookie_accept": "Accept all",
+    "cookie_reject": "Reject all",
+    "cookie_link": "More in our privacy policy"
+  }
+}

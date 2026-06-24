@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="{{ lang | default('en') }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0F1724">
+  <title>{% block title %}TERRRA Europa{% endblock %}</title>
+  <meta name="description" content="{% block description %}TERRRA Europa UG is a Hamburg-based environmental project development and consulting company supporting ecosystem restoration, regenerative land use, and EU research collaboration.{% endblock %}">
+  <link rel="canonical" href="https://terrra-europa.com/">
+  <link rel="alternate" hreflang="en" href="https://terrra-europa.com/">
+  <link rel="alternate" hreflang="de" href="https://terrra-europa.com/">
+  <link rel="alternate" hreflang="it" href="https://terrra-europa.com/">
+  <link rel="alternate" hreflang="x-default" href="https://terrra-europa.com/">
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{{ self.description() }}{% endblock %}">
+  <meta property="og:url" content="https://terrra-europa.com/">
+  <meta property="og:site_name" content="TERRRA Europa">
+  <meta property="og:locale" content="{% if lang == 'de' %}de_DE{% elif lang == 'it' %}it_IT{% else %}en_GB{% endif %}">
+  <meta property="og:image" content="https://terrra-europa.com/static/bg1.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ self.title() }}">
+  <meta name="twitter:description" content="{{ self.description() }}">
+
+  <link rel="icon" type="image/png" href="/static/logo/terrra-logo-green.png">
+  <link rel="apple-touch-icon" href="/static/logo/terrra-logo-green.png">
+  {% if ga4_id %}
+  <script>
+    // GA4 is consent-gated under TTDSG § 25. We only load it after the user
+    // explicitly accepts via the cookie banner. Consent stored in `eu_cookie_consent`.
+    (function() {
+      var match = document.cookie.match(/(?:^|; )eu_cookie_consent=([^;]+)/);
+      var consent = match ? decodeURIComponent(match[1]) : '';
+      if (consent === 'accepted') {
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id={{ ga4_id }}';
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', '{{ ga4_id }}', { 'anonymize_ip': true });
+      }
+    })();
+  </script>
+  {% endif %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@3.1.1/dist/iconify.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Public Sans', sans-serif;
+      background: #F9FAFB;
+      color: #212B36;
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+    :root {
+      --primary: #2065D1;
+      --primary-dark: #103996;
+      --primary-light: rgba(32,101,209,0.08);
+      --text: #212B36;
+      --text-secondary: #637381;
+      --text-muted: #919EAB;
+      --bg: #F9FAFB;
+      --surface: #FFFFFF;
+      --border: #DFE3E8;
+      --shadow-card: 0 0 2px rgba(145,158,171,0.2), 0 12px 24px -4px rgba(145,158,171,0.12);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --radius: 16px;
+      --radius-sm: 8px;
+      --hero-bg: #0F1724;
+    }
+
+    /* Nav */
+    .site-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 64px; display: flex; align-items: center; padding: 0 24px;
+      background: rgba(15,23,36,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-logo img { width: 32px; height: 32px; object-fit: contain; }
+    .nav-logo-text {
+      font-size: 0.9375rem; font-weight: 800; color: #fff;
+      letter-spacing: 0.07em; text-transform: uppercase;
+    }
+    .nav-logo-sub { display: none; }
+    .nav-spacer { flex: 1; }
+
+    /* Desktop nav action */
+    .nav-action { display: flex; align-items: center; gap: 8px; }
+    .nav-action a {
+      font-size: 0.875rem; font-weight: 600; color: rgba(255,255,255,0.75);
+      text-decoration: none; padding: 8px 16px; border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,255,255,0.18); transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .nav-action a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .nav-badge {
+      background: #e53935; color: #fff; font-size: 0.65rem; font-weight: 800;
+      border-radius: 100px; padding: 1px 6px; min-width: 18px; text-align: center;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 600px) {
+      .nav-logo-text { font-size: 0.8125rem; }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 28px; border-radius: var(--radius-sm);
+      font-family: inherit; font-size: 0.9375rem; font-weight: 600;
+      cursor: pointer; border: none; text-decoration: none; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent; color: var(--primary);
+      border: 1.5px solid var(--primary);
+    }
+    .btn-outline:hover { background: var(--primary-light); }
+    .btn-sm { padding: 8px 18px; font-size: 0.875rem; }
+
+    /* Cards */
+    .card {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-card); padding: 28px;
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="site-nav">
+    <a href="/" class="nav-logo">
+      <img src="/static/logo/terrra-logo-green.png" alt="TERRRA Europa">
+      <span class="nav-logo-text">TERRRA EUROPA</span>
+    </a>
+    <div class="nav-spacer"></div>
+    {% block nav_action %}{% endblock %}
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  {% if t %}
+  <div id="cookie-banner" style="display:none;position:fixed;left:16px;right:16px;bottom:16px;max-width:720px;margin:0 auto;background:#0F1724;color:#e0e6e0;border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:18px 22px;box-shadow:0 16px 40px rgba(0,0,0,0.45);z-index:9999;font-size:0.875rem;line-height:1.55;">
+    <p style="margin:0 0 12px 0;color:rgba(255,255,255,0.78);">
+      {{ t('index.cookie_text') }}
+      <a href="{{ t('index.footer_privacy_url') }}" style="color:#6fcf97;text-decoration:underline;text-underline-offset:2px;">{{ t('index.cookie_link') }}</a>.
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="cookie-accept" style="padding:8px 18px;border-radius:8px;background:#6fcf97;color:#0F1724;font-weight:700;border:none;cursor:pointer;font-family:inherit;font-size:0.875rem;">
+        {{ t('index.cookie_accept') }}
+      </button>
+      <button id="cookie-reject" style="padding:8px 18px;border-radius:8px;background:transparent;color:rgba(255,255,255,0.85);font-weight:600;border:1px solid rgba(255,255,255,0.25);cursor:pointer;font-family:inherit;font-size:0.875rem;">
+        {{ t('index.cookie_reject') }}
+      </button>
+    </div>
+  </div>
+  <script>
+    (function() {
+      function readCookie(name) {
+        var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]+)'));
+        return m ? decodeURIComponent(m[1]) : '';
+      }
+      function writeCookie(name, value, days) {
+        var d = new Date();
+        d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+        document.cookie = name + '=' + encodeURIComponent(value) +
+                          ';expires=' + d.toUTCString() +
+                          ';path=/;samesite=lax';
+      }
+      var banner = document.getElementById('cookie-banner');
+      if (!banner) return;
+      var consent = readCookie('eu_cookie_consent');
+      if (!consent) banner.style.display = 'block';
+      document.getElementById('cookie-accept').onclick = function() {
+        writeCookie('eu_cookie_consent', 'accepted', 365);
+        banner.style.display = 'none';
+        location.reload();
+      };
+      document.getElementById('cookie-reject').onclick = function() {
+        writeCookie('eu_cookie_consent', 'rejected', 365);
+        banner.style.display = 'none';
+      };
+    })();
+  </script>
+  {% endif %}
+</body>
+</html>

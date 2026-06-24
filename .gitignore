@@ -1,0 +1,24 @@
+# Secrets and local config
+.env
+.env.local
+
+# Runtime data — server state, hashed passwords, contact submissions
+data/
+
+# Secrets folder (TLS certs, etc.)
+secrets/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Editor + OS
+.DS_Store
+.vscode/
+.idea/
+
+# Local build/test artefacts
+*.log

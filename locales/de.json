@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "language": "Deutsch",
+    "code": "de",
+    "scope": "Public landing page only (/).",
+    "review_status": "DRAFT — needs professional review by a native German translator before going live in marketing.",
+    "note": "Mirrors locales/en.json. Keep keys identical when revising."
+  },
+
+  "index": {
+    "page_title": "TERRRA Europa — Umweltrestaurierung & Projektentwicklung",
+    "meta_description": "Die TERRRA Europa UG mit Sitz in Hamburg ist ein Unternehmen für umweltbezogene Projektentwicklung und Beratung. Wir unterstützen Ökosystemrestaurierung, regenerative Landnutzung und europäische Forschungskooperationen.",
+
+    "stealth_tag": "Umweltrestaurierung · Projektentwicklung · Forschungskooperation",
+    "hero_title_line1": "Die Natur",
+    "hero_title_line2": "sich selbst heilen lassen.",
+    "hero_sub": "TERRRA Europa ist ein Unternehmen für umweltbezogene Projektentwicklung und Beratung. Wir unterstützen Landeigentümer, öffentliche Stellen, Universitäten und NGOs bei der Wiederherstellung marginaler europäischer Flächen — durch Machbarkeitsstudien, Projektdesign, wissenschaftliches Monitoring und Forschungskooperation auf EU-Ebene.",
+
+    "contact_label": "Kontakt aufnehmen.",
+    "contact_label_accent": "Sagen Sie uns, wie wir helfen können.",
+    "role_landowner": "Landeigentümer / Landbewirtschafter",
+    "role_carbon_buyer": "Institutioneller Partner",
+    "role_project_developer": "Projektentwickler",
+    "role_other": "Sonstige",
+    "email_placeholder": "ihre@email.com",
+    "submit_btn": "Senden",
+    "submit_success": "✓ Vielen Dank. Wir antworten per E-Mail, wenn relevant.",
+    "submit_error_invalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    "submit_error_generic": "Etwas ist schiefgelaufen — bitte schreiben Sie uns direkt an info@terrra-europa.com",
+    "consent_label": "Ich willige ein, dass TERRRA Europa meine E-Mail-Adresse und meine ausgewählte Rolle zum Zweck der Beantwortung meiner Anfrage speichert, gemäß der {privacy_open}Datenschutzerklärung{privacy_close}.",
+
+    "pillar1_title": "Projektentwicklung",
+    "pillar1_body": "Machbarkeitsstudien, Projektdesign und Umsetzungsplanung für Umweltrestaurierungs- und regenerative Landnutzungsprojekte. Wir arbeiten mit Landeigentümern, öffentlichen Stellen und landwirtschaftlichen Partnern in ganz Europa.",
+    "pillar2_title": "Wissenschaftliches Monitoring",
+    "pillar2_body": "Unabhängiges, sensorgestütztes Umwelt-Monitoring von Restaurierungsergebnissen — Boden, Wasser und Vegetation. Wissenschaftlich fundierte Daten im Einklang mit EU-Umweltberichtsstandards — für Projektträger, öffentliche Stellen und Forschungspartner.",
+    "pillar3_title": "Forschung & Innovation",
+    "pillar3_body": "Koordination von förderfinanzierten Forschungs- und Innovationsprojekten, einschließlich EU-Forschungsprogrammen, in Kooperation mit Universitäten, öffentlichen Stellen, NGOs und Partnern aus der Privatwirtschaft.",
+
+    "what_we_do_title": "Was wir tun",
+    "what_we_do_intro": "TERRRA Europa unterstützt Konzeption, wissenschaftliches Monitoring und Koordination von Umweltrestaurierungsprojekten in Europa.",
+    "service1": "Nachhaltigkeits- und Landnutzungsberatung für Landeigentümer, öffentliche Stellen und NGOs",
+    "service2": "Machbarkeitsstudien und Projektdesign für Restaurierungs- und regenerative Landwirtschaftsprojekte",
+    "service3": "Unabhängiges Umwelt-Monitoring (Boden, Wasser, Vegetation) und Berichterstattung",
+    "service4": "Umsetzungsplanung, Partner-Koordination und Teilnahme an europäischen Forschungs-, Innovations- und Förderprogrammen",
+    "service5": "Kooperation mit landwirtschaftlichen Partnern, Universitäten und Forschungseinrichtungen",
+
+    "footnote_badge": "HARMONY · EIC Pathfinder Open 2026 (Antrag eingereicht, nicht bewilligt)",
+    "footnote_text_html": "TERRRA Europa ist als vorgeschlagener Partner in einem <strong>eingereichten HARMONY-Konsortialantrag</strong> beim <strong>EIC Pathfinder Open 2026</strong> aufgeführt (Antrags-ID 101353239, Entscheidung voraussichtlich Q4 2026). Das Konsortium schlägt sensorgestützte MRV für Moore in warmen Klimazonen vor — mit <strong>8 Institutionen in 5 Ländern</strong>. <em>Es handelt sich um einen eingereichten Antrag — eine Förderung wurde noch nicht bewilligt.</em>",
+
+    "revenue_model": "Unsere Einnahmen stammen aus Projektentwicklungsleistungen, wissenschaftlichen Monitoring-Verträgen, Nachhaltigkeitsberatung und EU-Forschungsförderung. Wir erbringen ausschließlich technische, wissenschaftliche und Beratungsdienstleistungen; wir partizipieren wirtschaftlich nicht an Erlösen aus Umweltzertifikaten, Krediten oder Emissionsberechtigungen und treten weder als Vermittler, Verwahrer noch als Transferstelle für solche Instrumente auf.",
+    "compliance_note": "TERRRA Europa entwickelt und überwacht Ökosystem-Restaurierungsprojekte. Wir geben keine Kohlenstoff-Zertifikate, Biodiversitäts-Zertifikate oder Emissionsberechtigungen aus, registrieren, vermitteln, verkaufen, übertragen oder tokenisieren sie nicht und erhalten keine Erlöse daraus; ebenso wenig betreiben wir einen Marktplatz, eine Börse, eine Vermittlung, eine Handelsplattform oder einen Finanzdienst.",
+    "footer_company": "TERRRA Europa UG (haftungsbeschränkt) i. G. · Moorfuhrtweg 4, 22301 Hamburg · Deutschland",
+    "footer_team_login": "Team-Anmeldung",
+    "footer_imprint": "Impressum",
+    "footer_privacy": "Datenschutz",
+    "footer_imprint_url": "/impressum",
+    "footer_privacy_url": "/datenschutz",
+    "cookie_text": "Wir verwenden ein technisch notwendiges Cookie, um Ihre Sprachauswahl zu speichern. Zusätzlich möchten wir Google Analytics einsetzen, um die Nutzung der Website zu verstehen — Ihre Entscheidung.",
+    "cookie_accept": "Alle akzeptieren",
+    "cookie_reject": "Alle ablehnen",
+    "cookie_link": "Mehr in unserer Datenschutzerklärung"
+  }
+}

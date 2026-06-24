@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Analytics — TERRRA Europa{% endblock %}
+
+{% block head %}
+<style>
+  .page { min-height: 100vh; padding: 88px 24px 60px; background: var(--bg); }
+  .inner { max-width: 1100px; margin: 0 auto; }
+  .page-title { font-size: 1.625rem; font-weight: 700; color: var(--text); letter-spacing: -0.025em; margin-bottom: 6px; }
+  .page-sub { font-size: 0.9375rem; color: var(--text-secondary); margin-bottom: 28px; }
+
+  .topbar { display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+  .topbar a {
+    padding: 8px 14px; border-radius: var(--radius-sm);
+    background: var(--surface); border: 1px solid var(--border);
+    text-decoration: none; color: var(--text-secondary);
+    font-size: 0.875rem; font-weight: 600;
+  }
+  .topbar a:hover { color: var(--text); border-color: var(--primary); }
+  .topbar a.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 720px) { .grid-3 { grid-template-columns: 1fr; } }
+
+  .stat-card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow-card); padding: 22px 24px;
+  }
+  .stat-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
+                text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+  .stat-value { font-size: 2rem; font-weight: 800; color: var(--text); line-height: 1; }
+  .stat-sub { margin-top: 8px; font-size: 0.8125rem; color: var(--text-secondary); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface); border-radius: var(--radius);
+          box-shadow: var(--shadow-card); padding: 24px; }
+  .card h2 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th { text-align: left; font-weight: 600; color: var(--text-muted);
+       padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 0.75rem;
+       text-transform: uppercase; letter-spacing: 0.06em; }
+  td { padding: 10px; border-bottom: 1px solid #f0f2f4; color: var(--text); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+
+  .empty { padding: 40px; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
+  .err { background: #FFF2F0; border: 1px solid #FFCCC7; border-radius: 8px;
+         padding: 14px 16px; color: #CF1322; font-size: 0.875rem; margin-bottom: 24px; }
+
+  .chart-wrap { height: 220px; margin-top: 12px; }
+</style>
+{% endblock %}
+
+{% block nav_action %}
+<div class="nav-action">
+  <a href="/admin">Admin</a>
+  <a href="/compose">Compose</a>
+  <a href="/contacts">Contacts</a>
+  <a href="/logout">Sign out</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="inner">
+    <h1 class="page-title">Analytics</h1>
+    <p class="page-sub">terrra-europa.com — last 30 days from Google Analytics 4.</p>
+
+    <div class="topbar">
+      <a href="/contacts">Contacts CRM</a>
+      <a href="/admin">User admin</a>
+      <a href="/admin/analytics" class="active">Analytics</a>
+    </div>
+
+    {% if not data.configured %}
+      <div class="err">Analytics not configured: {{ data.error }}</div>
+    {% else %}
+
+      <!-- Headline stats -->
+      <div class="grid-3">
+        <div class="stat-card">
+          <div class="stat-label">Today</div>
+          <div class="stat-value">{{ data.headline.today.users }}</div>
+          <div class="stat-sub">{{ data.headline.today.views }} pageviews · {{ data.headline.today.sessions }} sessions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Last 7 days</div>
+          <div class="stat-value">{{ data.headline.last_7.users }}</div>
+          <div class="stat-sub">{{ data.headline.last_7.views }} pageviews · {{ data.headline.last_7.sessions }} sessions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Last 30 days</div>
+          <div class="stat-value">{{ data.headline.last_30.users }}</div>
+          <div class="stat-sub">{{ data.headline.last_30.views }} pageviews · {{ data.headline.last_30.sessions }} sessions</div>
+        </div>
+      </div>
+
+      <!-- Daily users chart -->
+      <div class="card" style="margin-bottom:24px;">
+        <h2>Daily active users — last 30 days</h2>
+        <div class="chart-wrap"><canvas id="dailyChart"></canvas></div>
+      </div>
+
+      <!-- Two-column breakdowns -->
+      <div class="grid-2">
+        <div class="card">
+          <h2>Top countries</h2>
+          {% if data.countries %}
+          <table>
+            <thead><tr><th>Country</th><th class="num">Users</th></tr></thead>
+            <tbody>
+              {% for c in data.countries %}
+              <tr><td>{{ c.country or '(unknown)' }}</td><td class="num">{{ c.activeUsers }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div class="empty">No data yet.</div>
+          {% endif %}
+        </div>
+
+        <div class="card">
+          <h2>Top sources</h2>
+          {% if data.sources %}
+          <table>
+            <thead><tr><th>Source</th><th class="num">Users</th></tr></thead>
+            <tbody>
+              {% for s in data.sources %}
+              <tr><td>{{ s.sessionSource or '(direct)' }}</td><td class="num">{{ s.activeUsers }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div class="empty">No data yet.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Top pages</h2>
+        {% if data.pages %}
+        <table>
+          <thead><tr><th>Page</th><th class="num">Pageviews</th><th class="num">Users</th></tr></thead>
+          <tbody>
+            {% for p in data.pages %}
+            <tr>
+              <td><code>{{ p.pagePath or '/' }}</code></td>
+              <td class="num">{{ p.screenPageViews }}</td>
+              <td class="num">{{ p.activeUsers }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty">No data yet.</div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if data.configured %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  const daily = {{ data.daily | tojson }};
+  function fmtDate(s) {
+    if (!s || s.length !== 8) return s;
+    return s.slice(4,6) + '/' + s.slice(6,8);
+  }
+  const labels = daily.map(d => fmtDate(d.date));
+  const values = daily.map(d => d.activeUsers || 0);
+  new Chart(document.getElementById('dailyChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Active users',
+        data: values,
+        borderColor: '#1a7a4a',
+        backgroundColor: 'rgba(26,122,74,0.1)',
+        fill: true, tension: 0.25, pointRadius: 3,
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+    }
+  });
+</script>
+{% endif %}
+{% endblock %}
