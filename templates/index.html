@@ -70,6 +70,16 @@
     background-size: cover; background-position: center;
     opacity: 0;
     animation: heroFade var(--sun-cycle) linear infinite;
+    /* Sharper downscaling on browsers that support it. Helps on retina + 4K
+       monitors where 1920px source gets stretched. -webkit + crisp-edges
+       together cover Safari, Chrome, Firefox. */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    /* Force GPU compositing so filter/opacity animations stay smooth and
+       the photo isn't re-resampled every frame. */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: opacity, filter;
   }
   .hero-slide:nth-child(1) { background-image: url('/static/bg1.jpg'); animation-delay: calc(var(--sun-cycle) * 0 / 5); }
   .hero-slide:nth-child(2) { background-image: url('/static/bg2.jpg'); animation-delay: calc(var(--sun-cycle) * 1 / 5); }
@@ -78,71 +88,59 @@
   .hero-slide:nth-child(5) { background-image: url('/static/bg5.jpg'); animation-delay: calc(var(--sun-cycle) * 4 / 5); }
 
   @keyframes heroFade {
-    /* Each slide runs on the full --sun-cycle but is bright only in its own
-       20% window (5 slides × 20% = 100%). Inside that 20% window the day is
-       structured 30/40/30 — same proportions as the sun's 0–100% sub-cycle:
-         0.00–0.40% : image fades in
-         0.40–6.40% : SUNRISE (30% of 20%) — red → white, brightness ramps up
-         6.40–14.40%: NOON PLATEAU (40% of 20%) — text-readable, brightness steady
-         14.40–19.60%: SUNSET (26% of 20%) — white → red, brightness ramps down
-         19.60–20.00%: image fades to black
-         20–100%    : dark (other slides taking turns)
-       Brightness uses --sun-b1..b5 (scaled fractions of --sun-peak-brightness)
-       so the admin slider drives the whole curve. */
+    /* Each slide runs on the full --sun-cycle. Day window compressed from
+       20% → 15% so a real dark gap exists between slides (5 slides start
+       every 20%, each lit for 15%, dark for 5% before the next rises).
+       Inside the 15% day window the 30/40/30 structure is preserved.
+       All keyframe percentages = previous-value × 0.75. */
 
     /* total dark — pre-dawn */
-    0%     { opacity: 0;   filter: brightness(0.10) saturate(0.45) hue-rotate(0deg); }
+    0%      { opacity: 0;   filter: brightness(0.10) saturate(0.45) hue-rotate(0deg); }
 
-    /* image fade-in (0 → 0.4%) */
-    0.2%   { opacity: 0.5; filter: brightness(0.25) saturate(0.55) hue-rotate(0deg); }
-    0.4%   { opacity: 1;   filter: brightness(0.40) saturate(0.62) hue-rotate(0deg); }
+    /* image fade-in (0 → 0.30%) */
+    0.15%   { opacity: 0.5; filter: brightness(0.25) saturate(0.55) hue-rotate(0deg); }
+    0.30%   { opacity: 1;   filter: brightness(0.40) saturate(0.62) hue-rotate(0deg); }
 
-    /* SUNRISE 0.4 → 6.4% : 10 steps, brightness 0.40 → peak. Sepia + hue-rotate
-       scaled by --image-warmth: at colour-mix=1 the image stays neutral and
-       only the sun cycles its colours. */
-    1.0%   { opacity: 1;   filter: brightness(var(--sun-b1)) saturate(0.72) sepia(calc(0.10 * var(--image-warmth))) hue-rotate(calc(-4deg * var(--image-warmth))); }
-    1.6%   { opacity: 1;   filter: brightness(var(--sun-b1)) saturate(0.78) sepia(calc(0.15 * var(--image-warmth))) hue-rotate(calc(-2deg * var(--image-warmth))); }
-    2.2%   { opacity: 1;   filter: brightness(var(--sun-b2)) saturate(0.85) sepia(calc(0.18 * var(--image-warmth))) hue-rotate(0deg); }
-    2.8%   { opacity: 1;   filter: brightness(var(--sun-b2)) saturate(0.92) sepia(calc(0.18 * var(--image-warmth))) hue-rotate(calc(2deg * var(--image-warmth))); }
-    3.4%   { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(0.99) sepia(calc(0.16 * var(--image-warmth))) hue-rotate(calc(4deg * var(--image-warmth))); }
-    4.0%   { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(1.05) sepia(calc(0.13 * var(--image-warmth))) hue-rotate(calc(5deg * var(--image-warmth))); }
-    4.6%   { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.10) sepia(calc(0.10 * var(--image-warmth))) hue-rotate(calc(6deg * var(--image-warmth))); }
-    5.2%   { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.14) sepia(calc(0.07 * var(--image-warmth))) hue-rotate(calc(7deg * var(--image-warmth))); }
-    5.8%   { opacity: 1;   filter: brightness(var(--sun-b5)) saturate(1.17) sepia(calc(0.04 * var(--noon-warm) * var(--image-warmth))) hue-rotate(calc(7deg * var(--noon-warm) * var(--image-warmth))); }
-    6.4%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(1.20) sepia(calc(0.02 * var(--noon-warm) * var(--image-warmth))) hue-rotate(calc(8deg * var(--noon-warm) * var(--image-warmth))); }
+    /* SUNRISE 0.30 → 4.80% : 10 steps */
+    0.75%   { opacity: 1;   filter: brightness(var(--sun-b1)) saturate(0.72) sepia(calc(0.10 * var(--image-warmth))) hue-rotate(calc(-4deg * var(--image-warmth))); }
+    1.20%   { opacity: 1;   filter: brightness(var(--sun-b1)) saturate(0.78) sepia(calc(0.15 * var(--image-warmth))) hue-rotate(calc(-2deg * var(--image-warmth))); }
+    1.65%   { opacity: 1;   filter: brightness(var(--sun-b2)) saturate(0.85) sepia(calc(0.18 * var(--image-warmth))) hue-rotate(0deg); }
+    2.10%   { opacity: 1;   filter: brightness(var(--sun-b2)) saturate(0.92) sepia(calc(0.18 * var(--image-warmth))) hue-rotate(calc(2deg * var(--image-warmth))); }
+    2.55%   { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(0.99) sepia(calc(0.16 * var(--image-warmth))) hue-rotate(calc(4deg * var(--image-warmth))); }
+    3.00%   { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(1.05) sepia(calc(0.13 * var(--image-warmth))) hue-rotate(calc(5deg * var(--image-warmth))); }
+    3.45%   { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.10) sepia(calc(0.10 * var(--image-warmth))) hue-rotate(calc(6deg * var(--image-warmth))); }
+    3.90%   { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.14) sepia(calc(0.07 * var(--image-warmth))) hue-rotate(calc(7deg * var(--image-warmth))); }
+    4.35%   { opacity: 1;   filter: brightness(var(--sun-b5)) saturate(1.17) sepia(calc(0.04 * var(--noon-warm) * var(--image-warmth))) hue-rotate(calc(7deg * var(--noon-warm) * var(--image-warmth))); }
+    4.80%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(1.20) sepia(calc(0.02 * var(--noon-warm) * var(--image-warmth))) hue-rotate(calc(8deg * var(--noon-warm) * var(--image-warmth))); }
 
-    /* NOON PLATEAU 6.4 → 14.4% : brightness held at peak. Colour warmth
-       scales with --noon-warm (=1-noon_neutrality). At neutrality=1.0 the
-       sepia/hue terms collapse to 0 → clean neutral light. */
-    8.0%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.00 + 0.18 * var(--noon-warm))) sepia(calc(0.02 * var(--noon-warm))) hue-rotate(calc(6deg * var(--noon-warm))); }
-    10.0%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.00 + 0.16 * var(--noon-warm))) sepia(calc(0.02 * var(--noon-warm))) hue-rotate(calc(4deg * var(--noon-warm))); }
-    12.0%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.00 + 0.18 * var(--noon-warm))) sepia(calc(0.04 * var(--noon-warm))) hue-rotate(calc(2deg * var(--noon-warm))); }
-    14.4%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.05 + 0.17 * var(--noon-warm))) sepia(calc(0.10 * var(--noon-warm))) hue-rotate(0deg); }
+    /* NOON PLATEAU 4.80 → 10.80% */
+    6.00%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.00 + 0.18 * var(--noon-warm))) sepia(calc(0.02 * var(--noon-warm))) hue-rotate(calc(6deg * var(--noon-warm))); }
+    7.50%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.00 + 0.16 * var(--noon-warm))) sepia(calc(0.02 * var(--noon-warm))) hue-rotate(calc(4deg * var(--noon-warm))); }
+    9.00%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.00 + 0.18 * var(--noon-warm))) sepia(calc(0.04 * var(--noon-warm))) hue-rotate(calc(2deg * var(--noon-warm))); }
+    10.80%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)) saturate(calc(1.05 + 0.17 * var(--noon-warm))) sepia(calc(0.10 * var(--noon-warm))) hue-rotate(0deg); }
 
-    /* SUNSET 14.4 → 19.6% : 9 steps, white → red. Sepia + hue scaled by
-       --image-warmth (image colour-shift strength); early steps additionally
-       softened by noon-warm so they don't snap when the plateau is neutralised. */
-    15.0%  { opacity: 1;   filter: brightness(var(--sun-b5)) saturate(1.30) sepia(calc(0.20 * max(0.5, var(--noon-warm)) * var(--image-warmth))) hue-rotate(calc(-4deg * max(0.5, var(--noon-warm)) * var(--image-warmth))); }
-    15.6%  { opacity: 1;   filter: brightness(var(--sun-b5)) saturate(1.40) sepia(calc(0.30 * var(--image-warmth))) hue-rotate(calc(-8deg * var(--image-warmth))); }
-    16.2%  { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.50) sepia(calc(0.40 * var(--image-warmth))) hue-rotate(calc(-14deg * var(--image-warmth))); }
-    16.8%  { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.58) sepia(calc(0.48 * var(--image-warmth))) hue-rotate(calc(-20deg * var(--image-warmth))); }
-    17.4%  { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(1.65) sepia(calc(0.56 * var(--image-warmth))) hue-rotate(calc(-25deg * var(--image-warmth))); }
-    18.0%  { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(1.72) sepia(calc(0.62 * var(--image-warmth))) hue-rotate(calc(-30deg * var(--image-warmth))); }
-    18.6%  { opacity: 1;   filter: brightness(var(--sun-b2)) saturate(1.76) sepia(calc(0.66 * var(--image-warmth))) hue-rotate(calc(-33deg * var(--image-warmth))); }
-    19.2%  { opacity: 0.85; filter: brightness(var(--sun-b1)) saturate(1.72) sepia(calc(0.70 * var(--image-warmth))) hue-rotate(calc(-36deg * var(--image-warmth))); }
-    19.6%  { opacity: 0.4; filter: brightness(0.32) saturate(1.60) sepia(calc(0.74 * var(--image-warmth))) hue-rotate(calc(-38deg * var(--image-warmth))); }
+    /* SUNSET 10.80 → 14.70% */
+    11.25%  { opacity: 1;   filter: brightness(var(--sun-b5)) saturate(1.30) sepia(calc(0.20 * max(0.5, var(--noon-warm)) * var(--image-warmth))) hue-rotate(calc(-4deg * max(0.5, var(--noon-warm)) * var(--image-warmth))); }
+    11.70%  { opacity: 1;   filter: brightness(var(--sun-b5)) saturate(1.40) sepia(calc(0.30 * var(--image-warmth))) hue-rotate(calc(-8deg * var(--image-warmth))); }
+    12.15%  { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.50) sepia(calc(0.40 * var(--image-warmth))) hue-rotate(calc(-14deg * var(--image-warmth))); }
+    12.60%  { opacity: 1;   filter: brightness(var(--sun-b4)) saturate(1.58) sepia(calc(0.48 * var(--image-warmth))) hue-rotate(calc(-20deg * var(--image-warmth))); }
+    13.05%  { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(1.65) sepia(calc(0.56 * var(--image-warmth))) hue-rotate(calc(-25deg * var(--image-warmth))); }
+    13.50%  { opacity: 1;   filter: brightness(var(--sun-b3)) saturate(1.72) sepia(calc(0.62 * var(--image-warmth))) hue-rotate(calc(-30deg * var(--image-warmth))); }
+    13.95%  { opacity: 1;   filter: brightness(var(--sun-b2)) saturate(1.76) sepia(calc(0.66 * var(--image-warmth))) hue-rotate(calc(-33deg * var(--image-warmth))); }
+    14.40%  { opacity: 0.85; filter: brightness(var(--sun-b1)) saturate(1.72) sepia(calc(0.70 * var(--image-warmth))) hue-rotate(calc(-36deg * var(--image-warmth))); }
+    14.70%  { opacity: 0.4; filter: brightness(0.32) saturate(1.60) sepia(calc(0.74 * var(--image-warmth))) hue-rotate(calc(-38deg * var(--image-warmth))); }
 
-    /* fade to dark, then hold for the other 80% of the cycle */
-    20%    { opacity: 0;   filter: brightness(0.10) saturate(0.45) hue-rotate(0deg); }
-    100%   { opacity: 0;   filter: brightness(0.10) saturate(0.45) hue-rotate(0deg); }
+    /* fade to dark, then 5% gap of true dark before next slide rises */
+    15%     { opacity: 0;   filter: brightness(0.10) saturate(0.45) hue-rotate(0deg); }
+    100%    { opacity: 0;   filter: brightness(0.10) saturate(0.45) hue-rotate(0deg); }
   }
 
   /* Overlay: backlit centre on desktop, simpler on mobile (filter CSS unreliable on iOS) */
   .hero-overlay {
     position: absolute; inset: 0; z-index: 1;
     background:
-      radial-gradient(ellipse 60% 55% at 50% 52%, rgba(8,16,26,0.05) 0%, rgba(8,16,26,0.52) 100%),
-      linear-gradient(to bottom, rgba(8,16,26,0.22) 0%, rgba(8,16,26,0.08) 40%, rgba(8,16,26,0.35) 100%);
+      radial-gradient(ellipse 65% 55% at 50% 52%, rgba(8,16,26,0.0) 0%, rgba(8,16,26,0.40) 100%),
+      linear-gradient(to bottom, rgba(8,16,26,0.15) 0%, rgba(8,16,26,0.0) 40%, rgba(8,16,26,0.25) 100%);
   }
   /* ── Sun: traverses an arc above the horizon, one full arc per image ──
      The slideshow runs 5 images on `--sun-cycle` total. Each image is visible
@@ -495,25 +493,26 @@
      same plateau, but ONLY brightness() — no sepia, hue-rotate, saturate, no
      blend modes, no sun. Cheap enough to run on phones at 60fps. */
   @keyframes heroFadeMobile {
-    0%     { opacity: 0;   filter: brightness(0.10); }
-    0.2%   { opacity: 0.5; filter: brightness(0.25); }
-    0.4%   { opacity: 1;   filter: brightness(0.40); }
-    /* sunrise ramp (0.4 → 6.4%) */
-    1.6%   { opacity: 1;   filter: brightness(var(--sun-b1)); }
-    2.8%   { opacity: 1;   filter: brightness(var(--sun-b2)); }
-    4.0%   { opacity: 1;   filter: brightness(var(--sun-b3)); }
-    5.2%   { opacity: 1;   filter: brightness(var(--sun-b4)); }
-    6.4%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)); }
-    /* noon plateau (6.4 → 14.4%) */
-    14.4%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)); }
-    /* sunset ramp (14.4 → 19.6%) */
-    15.6%  { opacity: 1;   filter: brightness(var(--sun-b5)); }
-    16.8%  { opacity: 1;   filter: brightness(var(--sun-b4)); }
-    18.0%  { opacity: 1;   filter: brightness(var(--sun-b3)); }
-    19.2%  { opacity: 0.85; filter: brightness(var(--sun-b1)); }
-    19.6%  { opacity: 0.4; filter: brightness(0.32); }
-    20%    { opacity: 0;   filter: brightness(0.10); }
-    100%   { opacity: 0;   filter: brightness(0.10); }
+    /* Same 15% day window + 5% dark gap as desktop, brightness-only. */
+    0%      { opacity: 0;   filter: brightness(0.10); }
+    0.15%   { opacity: 0.5; filter: brightness(0.25); }
+    0.30%   { opacity: 1;   filter: brightness(0.40); }
+    /* sunrise ramp (0.30 → 4.80%) */
+    1.20%   { opacity: 1;   filter: brightness(var(--sun-b1)); }
+    2.10%   { opacity: 1;   filter: brightness(var(--sun-b2)); }
+    3.00%   { opacity: 1;   filter: brightness(var(--sun-b3)); }
+    3.90%   { opacity: 1;   filter: brightness(var(--sun-b4)); }
+    4.80%   { opacity: 1;   filter: brightness(var(--sun-peak-brightness)); }
+    /* noon plateau (4.80 → 10.80%) */
+    10.80%  { opacity: 1;   filter: brightness(var(--sun-peak-brightness)); }
+    /* sunset ramp (10.80 → 14.70%) */
+    11.70%  { opacity: 1;   filter: brightness(var(--sun-b5)); }
+    12.60%  { opacity: 1;   filter: brightness(var(--sun-b4)); }
+    13.50%  { opacity: 1;   filter: brightness(var(--sun-b3)); }
+    14.40%  { opacity: 0.85; filter: brightness(var(--sun-b1)); }
+    14.70%  { opacity: 0.4; filter: brightness(0.32); }
+    15%     { opacity: 0;   filter: brightness(0.10); }
+    100%    { opacity: 0;   filter: brightness(0.10); }
   }
 
   /* Mobile: keep the day cycle (brightness only), drop the expensive sun + colour filters */

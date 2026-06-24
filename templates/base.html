@@ -47,6 +47,8 @@
     })();
   </script>
   {% endif %}
+  <!-- Preload first hero image so it renders sharp on initial paint, not after JS+CSS settle -->
+  <link rel="preload" as="image" href="/static/bg1.jpg" fetchpriority="high">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
