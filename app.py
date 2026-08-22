@@ -1048,6 +1048,8 @@ UNDERSTANDING_PATH = Path(os.environ.get(
 # Short glosses for the section headings, so a reader arriving cold knows why each part exists.
 # Keyed on the heading text as written in the document.
 _SECTION_NOTES = {
+    "The question, and its hierarchy": "What is being asked, and what was asked before. "
+                                       "Revised 2026-08-23.",
     "Goal": "What is being attempted, in one statement.",
     "Epistemic Test": "How the question would be answered — and why there is no single test.",
     "Objectives": "The two things that must both be true for the project to mean anything.",

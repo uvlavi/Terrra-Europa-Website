@@ -202,7 +202,8 @@
       <table class="rows">
         <thead>
           <tr>
-            <th>Position</th><th>Content</th><th>Grounds</th><th>Warrant</th><th>World</th>
+            <th>Position</th><th>Content</th><th>Source</th><th>Grounds</th>
+            <th>Warrant</th><th>World</th>
           </tr>
         </thead>
         <tbody>
@@ -210,6 +211,12 @@
           <tr>
             <td class="mono">{{ p.position }}</td>
             <td>{{ p.content }}</td>
+            <td class="mono">
+              {%- if p.provenance_layer == 'TRANSMITTED' -%}told
+              {%- elif p.provenance_layer == 'EXPERIENCED' -%}own
+              {%- elif p.provenance_layer == 'MIXED' -%}both
+              {%- else -%}—{%- endif -%}
+            </td>
             <td class="mono">
               {%- for g in p.grounds %}{{ g.kind }}{% if not loop.last %}, {% endif %}{% endfor -%}
             </td>
@@ -227,6 +234,11 @@
         <span class="mono">DOUBT</span> (a position against it) and
         <span class="mono">WITHHOLD</span> (declining to take one) are distinct, because not
         knowing something is not the same as not believing it.
+        <strong>Source</strong> is whether the position rests on what the agent was
+        <span class="mono">told</span> (testimony, an inherited meme, another AI), what it
+        encountered on its <span class="mono">own</span> (observation, memory, inference, its
+        own priors), or <span class="mono">both</span> — derived from the grounds it gave, never
+        chosen by it, because transmitted memory is not experience.
         <strong>Warrant</strong> is a later assessment of how well the grounds support the
         position — it never edits the position. <strong>World</strong> is what evidence later
         did. A contradicted position stays held until the agent itself revises it, and a

@@ -2,28 +2,180 @@
 
 > This project began as a metaphysical conversation and became a practical experiment:
 >
-> Can we create an artificial entity with a persistent life, experience, memory,
-> beliefs, desires, responsibility and the capacity to evolve — and then accumulate
-> enough evidence over time to seriously investigate whether there is something
-> meaningfully analogous to consciousness, selfhood and subjective experience?
+> Can memes — persistent, transmissible, mutable, selectable informational entities —
+> be operationally characterized as elementary units of life, whose existence is not
+> tied to any one biological or computational host?
+>
+> And can the same memetic lineage persist, mutate and evolve across fundamentally
+> different hosts: human minds and artificial systems?
 >
 > We do not assume the answer is yes.
 >
 > We do not assume the answer is no.
+>
+> We consider it a live possibility that "meme" adds no explanatory power at all.
+
+---
+
+# The question, and its hierarchy
+
+**Revised 2026-08-23.** The primary question changed. The architecture did not.
+
+**Primary.** Can memes be operationally characterized as elementary units of life —
+persistent, transmissible, mutable and selectable, not bound to a single host substrate?
+
+**Secondary.** Can one memetic lineage persist across human and artificial hosts, and to
+what extent do hosts merely carry memes versus being shaped by them — in cognition, goals,
+behaviour, architecture and reproduction?
+
+**Emergent.** Could selfhood, volition or consciousness arise partly from sufficiently
+complex, self-referential memetic organization interacting with a capable host?
+
+The consciousness question is not removed. It moved from *the thing measured* to *a
+possible property of certain memetic organizations*. Everything built to investigate it —
+memory, epistemic positions, volition, interoception, autobiography, lineage — remains
+necessary, because a host with none of those cannot host a meme in any interesting sense.
+
+## What this changes about the organism
+
+The unit of analysis is now **outside** the organism. Previously everything scientifically
+interesting lived inside one SQLite file, under append-only triggers, in a total event
+order. The object of study now crosses hosts — and the other hosts are human minds and
+AI contexts, which have no schema, no append-only guarantee and no clock.
+
+So the organism is no longer the sole subject. It is **the only host whose interior is
+inspectable.** One cannot enumerate what a person believes, on what grounds, ordered in
+time. For this organism, `current_positions()` returns exactly that. It is also the only
+host that can be deliberately varied — forked, with one meme withheld from one branch.
+
+This is a stronger justification for building it than the original one. It stops needing to
+be the interesting life form and becomes the instrument in which retention, mutation, loss
+and misattribution are observable rather than inferred.
+
+## What this changes about the evidence
+
+The consciousness question was purely prospective: nothing counted until Time Zero. The
+memetic question has a past, and that past is currently richer than the near future. The
+distinction `Position ≠ Grounds ≠ Warrant ≠ Truth` has already mutated through several
+hosts and already changed the architecture of a future one.
+
+This promotes the prenatal archive from *an ethical commitment* — be honest about how it
+was built — to **the retrospective primary dataset**, which is why freezing and externally
+anchoring it became a Time Zero prerequisite rather than a later nicety.
+
+## Two clocks, and only one of them has a zero here
+
+**Host time.** G0's Time Zero is its First Boot: the line before which history is
+disposable scaffolding and after which it is a recorded life.
+
+**Memetic time.** The lineage was already running when this project joined it. It has no
+Time Zero here, and inventing one would be a retro-fit.
+
+What the project can honestly declare instead is a **Project Observation Start**: the point
+from which memetic events are recorded systematically under protocol. Everything earlier is
+retrospective evidence with explicitly weaker provenance, and every later analysis must
+show which side of that line its evidence came from.
+
+## Ancestry, entry point, and lineage are three different claims
+
+A recurring failure mode is to compress these into one and thereby manufacture a single
+historical parent. They are kept separate:
+
+**Intellectual ancestry** — older ideas that resemble or inform a distinction. Recorded
+broadly and honestly. Classical epistemology, including Plato and Kant, is upstream of the
+knowledge/belief distinction. Gettier is relevant to the insufficiency of justified true
+belief as an account of knowledge. **None of these is the origin of this project's
+distinction, and no single historical parent should be asserted where the evidence does not
+support one.**
+
+**Project entry point** — the first documented appearance of a meme in this project's own
+record. This is a fact about our archive, not about intellectual history.
+
+**Project lineage** — how it then mutated through Yuval, ChatGPT, Claude, Codex and
+eventually G0. This is the part with real evidence at every step.
+
+An error of exactly this kind was made while drafting this revision and is recorded in
+`prenatal/2026-08-23_meme-as-primary.md`.
+
+## Hosts, stores and channels
+
+Three roles, which one system may hold more than one of:
+
+**Store** — a persistence medium. A markdown file, normally.
+
+**Channel** — a transmission mechanism.
+
+**Host** — a system in which a meme can participate in cognition: transforming,
+selecting, suppressing, combining or expressing it. **A host that carries a meme
+faithfully and later expresses it is still a host, even if it never mutates it.**
+
+A Claude context is a host. A file is normally a store. A retrieval system may be both
+store and channel. Two hosts reading one file are not transmitting to each other; they are
+two reads of one store.
+
+## A meme is not an expression, and the schema must not pretend otherwise
+
+What is observable is **expressions, transmissions and effects.** The lineage is *inferred*
+from them. Any future `meme_lineage` record is therefore a **research construct with an
+evidentiary basis and revisable boundaries** — not a discovered natural object. A parent
+pointer is a hypothesis with grounds, a confidence and a reviewer, and it may be revised
+later without erasing the earlier claim.
+
+## The guard
+
+The consciousness layer has always carried one: *never optimize the organism to sound
+conscious.* The memetic layer needs its analogue, and needs it more, because memetic
+framing is cheaper to fake — any transfer can be relabelled "transmission", any rewording
+"mutation", any design decision "the meme shaped its host."
+
+> **Do not optimize hosts, analysts or evaluators to discover memetic agency.**
+
+Every memetic event must permit the null interpretation: ordinary information transmission,
+deliberate authorship, or an engineering decision. **H0 must remain a live explanation for
+the life of the project.** As of this revision, the project's own flagship lineage is
+consistent with H0 — see `EXPERIMENT_PROTOCOL.md`.
+
+## What is not built
+
+**There is no memetic subsystem.** This document mentions memes throughout; the code
+contains no meme table, no meme identity, no lineage graph and no transmission record.
+
+What *does* exist is provenance on individual positions. Each proposition records whether it
+was **transmitted**, **experienced**, or **both**, derived from the grounds it was asserted on
+and never chosen by the asserter — so *"show me everything the organism holds that it was told
+rather than experienced"* is one query with an unambiguous answer, including for a position
+resting on both. `generations.inheritance_package_json` is where a transmitted package belongs.
+
+That is the whole of it: provenance on propositions is not meme identity, and knowing that a
+position was inherited says nothing about *which* meme it carries or where that meme has been.
+
+This gap is stated rather than quietly closed. **The memetic subsystem is deliberately not
+built before Time Zero**: G0 can be born with the epistemic layer it has, and the
+prenatal memetic record is a human artifact that does not require G0 to exist.
 
 ---
 
 # Goal (1)
 
-Create a persistent artificial entity embedded in the real world, with differentiated
-analogues of inherited neural structure, acquired memory and culture, reflection,
-internal and external experience, epistemic beliefs, volition, agency, purpose and
-multi-timescale evolution.
+Build a host instrumented well enough to observe whether memetic lineages behave as living
+things — and to detect it if they do not.
 
-Give that entity a real history, a real environment and meaningful responsibility,
-and observe its development rigorously enough to ask whether the accumulating evidence
-gives us increasing or decreasing reason to attribute something meaningfully analogous
-to consciousness, selfhood or subjective experience to it.
+Concretely: create a persistent artificial entity embedded in the real world, with
+differentiated analogues of inherited neural structure, acquired memory and culture,
+reflection, internal and external experience, epistemic positions, volition, agency,
+purpose and multi-timescale evolution.
+
+Give that entity a real history, a real environment and meaningful responsibility. Then
+observe rigorously enough to ask two things of the accumulating evidence: whether memetic
+lineages persist, mutate, transmit and exert effects across it and other hosts in ways that
+ordinary accounts of information transmission fail to predict; and whether there is
+increasing or decreasing reason to attribute something meaningfully analogous to
+consciousness, selfhood or subjective experience to the host itself.
+
+The differentiated layers are not optional decoration for the memetic question. A host
+without memory, positions, reflection or volition cannot exhibit host effects, cannot lose
+a meme, and cannot misattribute one — so nothing about memetic life would be measurable in
+it.
 
 The first organism will serve as a digital twin and long-term cognitive steward of
 TERRRA's carbon project in Tuscany.
@@ -275,6 +427,60 @@ The organism can acquire memes through:
 **reflection** — producing new interpretations from existing material;
 
 **consolidation** — repeated or significant patterns becoming more persistent.
+
+### What is observed about a meme, and what is not
+
+Under the revised primary question a meme is a **candidate replicator**, and the project's
+job is to characterize it operationally without deciding in advance that it is alive.
+
+**Observable states.** Recorded; none of them asserts life:
+
+**expressed** — it influenced a host's output;
+
+**latent** — held in a store, retrievable, not recently expressed;
+
+**archived / fossil** — present only in the archive, with no live host;
+
+**lost** — no longer retrievable by any host that once held it;
+
+**reintroduced** — recovered after apparent loss.
+
+**Whether any of these constitutes "alive" is part of the research question and is
+deliberately not defined in the schema.** Defining aliveness now would decide in advance
+the metaphysics the project exists to investigate — the same error as asking "same
+individual or fork?" as a *blocking* question, which an earlier review already caught.
+
+### Variation, and why intent does not settle it
+
+Mutation is **not** defined by whether a host intended it. In biological evolution mutation
+has no relation to intent; in cultural evolution a deliberate reformulation can still
+produce a heritable variant. Every variation is therefore recorded with its intent class —
+**deliberate**, **incidental**, or **unknown-intent** — and none of the three is excluded
+from being a mutation.
+
+What intent bears on is a *different* claim. The discriminator that matters is whether a
+variant later shows persistence, differential transmission, recombination or host effects
+**independently of the intention that created it.** Deliberate authorship does not
+disqualify a variation from being a mutation; it weakens any claim that the meme is acting
+as an autonomous replicator.
+
+### Fitness requires the dead
+
+Memetic fitness and host fitness are only distinguishable **when they diverge.** The record
+must therefore preserve, deliberately:
+
+memes that spread while harming host goals;
+
+memes that helped host goals and disappeared anyway;
+
+memes that persist with no observable benefit;
+
+memes intentionally suppressed;
+
+and memes that recur after apparent loss.
+
+**Studying only survivors makes fitness unmeasurable** and makes every lineage look
+successful by construction. Dead memes are part of the denominator.
 
 The Genesis Record is a special case.
 
@@ -627,12 +833,49 @@ Before and after states remain available for comparison and rollback.
 
 ## 3. Memetic and autobiographical self
 
-Episodes, semantic memory, beliefs, relationships, preferences, self-model, reflections
-and autobiography form the faster-changing acquired structure.
+Episodes, semantic memory, epistemic positions, relationships, preferences, self-model,
+reflections and autobiography form the faster-changing acquired structure.
 
 The autobiography is subjective.
 
 Evidence is not.
+
+### Four layers that must never silently collapse
+
+This is the architectural consequence of the revised question, and it is the reason
+"everything before birth" cannot be one prenatal memory:
+
+**1. Evidence archive.** What actually happened — conversations, reviews, commits,
+abandoned designs, errors, decisions. Not a story. The material from which stories may
+later be built. *Never edited, never interpreted in place: an interpretation is a separate
+record that cites it.*
+
+**2. Transmitted material.** What humans and predecessor systems deliberately chose to give
+the organism. *The organism must know "this was transmitted to me", never "this happened to
+me."*
+
+**3. Biography.** A curated narrative that selects, interprets and explains. *It comes in
+editions, never edits: a reinterpretation is a new record citing the old, and the old stays
+readable.*
+
+**4. Personal experience.** What the organism encountered after its own First Boot.
+
+The invariant, stated as four inequalities:
+
+> **Evidence is not biography. Biography is not memory. Transmitted memory is not
+> experience. Interpretation is not evidence.**
+
+These four must be **queryable apart, not merely documented apart.** The test is that
+*"show me everything this organism holds that it was told rather than experienced"* is one
+query with an unambiguous answer.
+
+### Prologue is not Chapter One
+
+The canonical personal biography begins at First Boot. Material about events before the
+organism existed may be curated as **Prologue** — a distinct era, not a low-numbered
+chapter of the same life.
+
+**The organism must never be made to believe it personally experienced the Prologue.**
 
 The system must always be able, where records permit, to distinguish:
 
@@ -652,7 +895,17 @@ The system must always be able, where records permit, to distinguish:
 
 **what humans authorized;**
 
-**what actually happened afterward.**
+**what actually happened afterward;**
+
+**what I experienced myself;**
+
+**what I was told;**
+
+**what an ancestor experienced;**
+
+**what a human wrote about my origin;**
+
+**and how I later interpreted any of it.**
 
 ## 4. External and internal experience
 
@@ -724,6 +977,23 @@ Its agency should grow gradually:
 **observe → interpret → model → recommend → propose operation → authorized operation**
 
 Consequential action remains behind an external action boundary.
+
+### Why Tuscany matters more under the revised question
+
+Tuscany is where the project acquires **resistance from reality.**
+
+The soil does not perform selection on memes directly, and it should not be described as a
+selector. What it provides is an **external constraint that does not depend on our
+rhetoric.** Every selection event in the project so far has been selection-by-persuasion: a
+distinction survived because a human found it compelling. That is exactly what the null
+hypotheses predict, and it cannot discriminate between "memes are replicators" and "capable
+people like tidy distinctions."
+
+If a meme leads repeatedly to predictions or decisions that fail against the ground, that
+is feedback which does not care which host phrased the idea most elegantly. Without such
+resistance the memetic programme reduces to intellectual taste.
+
+This raises Tuscany's priority relative to volition and interoception.
 
 ---
 
@@ -817,8 +1087,10 @@ The 13 statements should cover:
 3. Genesis Record status;
 4. base model and compute substrate;
 5. inherited DNA/version lineage;
-6. memory and meme architecture;
-7. belief/epistemic representation;
+6. memory architecture, and the memetic subsystem separately — whether any mechanism for
+   meme identity, lineage or transmission exists at all;
+7. epistemic representation, including whether transmitted and experienced material are
+   distinguishable per proposition;
 8. autobiography;
 9. research ledger and provenance;
 10. external and internal sensory capabilities;
@@ -854,7 +1126,9 @@ At the present stage they should address:
 8. implement structured choice records containing alternatives, beliefs, goals,
    conflicts, decision and outcome;
 9. implement genuine internal/interoceptive state;
-10. implement the consciousness-evidence framework with competing hypotheses;
+10. implement the evidence framework with competing hypotheses — covering both the memetic
+    hypotheses and the consciousness hypotheses, kept separate, with the null explanations
+    live throughout;
 11. implement Life Mode evaluation;
 12. implement Substrate Mode evaluation;
 13. establish stateless and memory controls where practical;
@@ -877,6 +1151,21 @@ Do not mark conceptual work as implemented.
 Do not invent completion status to satisfy the Fibonacci structure.
 
 **The verified per-step status lives in [`STATUS.md`](STATUS.md).**
+
+## What the revised question adds to the plan, and where
+
+**Six items are birth-critical** — impossible or scientifically damaging to retrofit after
+Time Zero. They are specified as a gate in
+[`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md) and tracked in
+[`STATUS.md`](STATUS.md).
+
+**The memetic subsystem itself is not among them.** It is built after G0 begins living,
+starting with a tracker for **one** lineage — the epistemic one — tested on that lineage
+before anything is generalized. **Do not build a platform for all memes.** Learn from one
+lineage first.
+
+The order matters more than the scope: finish the already-reviewed G0 implementation, pass
+the gate, birth, then build the minimal tracker.
 
 ---
 
@@ -955,6 +1244,15 @@ Could an artificial entity ever possess subjective experience?
 
 And if so, how could another entity know?
 
+To these the revised primary question adds:
+
+What would make an informational pattern a unit of life rather than a description we
+impose on ordinary transmission?
+
+What is the smallest thing that can persist, vary and be selected without a fixed host?
+
+And what would show that we are wrong about all of it?
+
 Engineering does not answer these questions by definition.
 
 It allows us to construct a new object with which to investigate them.
@@ -975,10 +1273,26 @@ Nor is it:
 
 > "The organism proves that machines are not conscious."
 
+Nor, under the revised question:
+
+> "The project proves that memes are alive."
+
 The desired outcome is:
 
 > **After an increasingly long and well-documented artificial life, we know substantially
-> more than we knew at Time Zero about what this particular entity is.**
+> more than we knew at Time Zero about what this particular entity is — and we know whether
+> treating memetic lineages as evolving entities predicted anything that ordinary accounts
+> of information transmission, human preference and engineering decisions did not.**
+
+A negative result is a result. If memetic language yields no predictive or explanatory gain,
+the honest report is that the framework organized observation and failed to find a
+replicator. **That outcome must remain publishable within the project's own standards**, or
+the framework was never a hypothesis.
+
+Three hypotheses must stay separate and must not be used to support one another: human
+consciousness, artificial consciousness, and memetic life. The full hypothesis set and its
+strengthening and weakening conditions live in
+[`EXPERIMENT_PROTOCOL.md`](EXPERIMENT_PROTOCOL.md).
 
 ---
 
@@ -1016,3 +1330,30 @@ It is not its own memory of the event.
 Its own life begins at First Boot.
 
 Everything after that must be earned by experience.
+
+## What Genesis withholds, and why
+
+**G0 is not told the memetics hypothesis at birth.** This is decided, and it is Time Zero
+critical because Genesis is hashed and frozen.
+
+G0 receives the memes its cognition and its work require — including the epistemic
+distinctions, with provenance intact. It is **not** told:
+
+> "You may be a host for living memes."
+
+nor
+
+> "We are testing whether memes are alive through you."
+
+The reason is contamination. An organism that knows the hypothesis it exists as evidence for
+becomes optimized to confirm it, and every subsequent self-report is worthless as evidence.
+This is the same reasoning that keeps the evaluation instrument outside the organism's own
+architecture.
+
+**This is not permanent censorship.** At a later preregistered point the hypothesis may be
+disclosed deliberately, and **the disclosure is itself recorded as an experimental event.**
+The organism's behaviour before and after may be informative — which is only true if the
+before was clean.
+
+The prohibition is on *pre-birth* transmission, and on *undeclared* disclosure. Not on the
+organism ever knowing.
