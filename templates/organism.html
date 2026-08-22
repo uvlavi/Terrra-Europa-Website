@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Digital Twin — Nova Terrra Europa{% endblock %}
+
+{% block head %}
+<style>
+  .org-page { min-height: 100vh; padding: 100px 24px 60px; background: var(--bg); }
+  .org-inner { max-width: 940px; margin: 0 auto; }
+
+  .org-header { margin-bottom: 28px; }
+  .org-header-top {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; margin-bottom: 4px;
+  }
+  .org-title { font-size: 1.5rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .org-subtitle { font-size: 0.9375rem; color: var(--text-secondary); }
+  .logout-link { font-size: 0.875rem; color: var(--text-secondary); text-decoration: none; }
+  .logout-link:hover { color: var(--text); }
+
+  .banner {
+    padding: 12px 16px; border-radius: 10px; margin-bottom: 24px;
+    font-size: 0.875rem; line-height: 1.5;
+  }
+  .banner-warn { background: rgba(234,179,8,.12); border: 1px solid rgba(234,179,8,.35); color: #92400e; }
+  .banner-err  { background: rgba(239,68,68,.10); border: 1px solid rgba(239,68,68,.32); color: #991b1b; }
+
+  .card {
+    background: var(--surface, #fff); border: 1px solid var(--border, rgba(0,0,0,.08));
+    border-radius: 14px; padding: 20px 22px; margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--text-secondary); margin-bottom: 14px;
+  }
+
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 20px; }
+  .kv-item { min-width: 0; }
+  .kv-k { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); }
+  .kv-v {
+    font-size: 0.9375rem; font-weight: 600; color: var(--text);
+    font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; font-weight: 500; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+    border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+  }
+  .pill-ok   { background: rgba(16,185,129,.13); color: #047857; }
+  .pill-bad  { background: rgba(239,68,68,.13); color: #b91c1c; }
+  .pill-idle { background: rgba(100,116,139,.13); color: #475569; }
+
+  table.rows { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  table.rows th {
+    text-align: left; font-size: 0.6875rem; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--text-secondary); font-weight: 700;
+    padding: 0 10px 8px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,.08));
+  }
+  table.rows td {
+    padding: 9px 10px 9px 0; border-bottom: 1px solid var(--border, rgba(0,0,0,.05));
+    color: var(--text); vertical-align: top;
+  }
+  table.rows tr:last-child td { border-bottom: 0; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .chapter-link { color: var(--text); text-decoration: none; font-weight: 600; }
+  .chapter-link:hover { text-decoration: underline; }
+  .empty { color: var(--text-secondary); font-size: 0.875rem; font-style: italic; }
+  .foot { font-size: 0.8125rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.6; }
+  .nav-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .nav-row a { font-size: 0.875rem; color: var(--accent, #047857); text-decoration: none; font-weight: 600; }
+  .nav-row a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="org-page">
+  <div class="org-inner">
+
+    <div class="org-header">
+      <div class="org-header-top">
+        <div class="org-title">Digital Twin</div>
+        <a href="/logout" class="logout-link">Sign out</a>
+      </div>
+      <div class="org-subtitle">
+        Read-only view of the persistent agent. {{ display_name }}.
+      </div>
+    </div>
+
+    {% if error %}
+      <div class="banner banner-err">
+        <strong>Cannot reach the agent.</strong> {{ error }}
+        <br>The agent runs on a separate host; if it is stopped, this page has
+        nothing to show. Nothing is broken here.
+      </div>
+    {% endif %}
+
+    {% if not time_zero_declared %}
+      <div class="banner banner-warn">
+        <strong>Prenatal — this is not the experiment yet.</strong>
+        Time Zero has not been declared, so nothing below is part of a recorded life.
+        Everything here is scaffolding: this history is deliberately disposable and will be
+        discarded when the experiment begins, after which the full battery is re-run. What is
+        shown is the mechanism working, not evidence about an individual.
+      </div>
+    {% endif %}
+
+    <div class="nav-row">
+      <a href="/organism/understanding">What it is →</a>
+      <a href="/organism/genesis">Genesis Record →</a>
+      <a href="/organism/api/research/state">Raw JSON →</a>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Vital signs</div>
+      {% if health %}
+      <div class="kv">
+        <div class="kv-item">
+          <div class="kv-k">Status</div>
+          <div class="kv-v">
+            {% if health.get('ok') %}<span class="pill pill-ok">alive</span>
+            {% else %}<span class="pill pill-bad">not ok</span>{% endif %}
+          </div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">Name</div>
+          <div class="kv-v">{{ health.get('agent', '—') }}</div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">Model</div>
+          <div class="kv-v mono">{{ health.get('local_model', '—') }}</div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">Genesis</div>
+          <div class="kv-v">
+            {% if health.get('genesis_verified') %}<span class="pill pill-ok">verified</span>
+            {% else %}<span class="pill pill-bad">FAILED</span>{% endif %}
+          </div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">External calls</div>
+          <div class="kv-v">{{ health.get('external_policy', '—') }}</div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">Chapters written</div>
+          <div class="kv-v num">{{ health.get('chapters', 0) }}</div>
+        </div>
+      </div>
+      {% else %}
+        <div class="empty">Unavailable.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Where it is in its life</div>
+      {% if snapshot %}
+      <div class="kv">
+        <div class="kv-item">
+          <div class="kv-k">Day index</div>
+          <div class="kv-v num">
+            {% if snapshot.get('day_index') is none %}not yet born{% else %}{{ snapshot.get('day_index') }}{% endif %}
+          </div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">Episodes lived</div>
+          <div class="kv-v num">{{ snapshot.get('episodes', 0) }}</div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">Condition</div>
+          <div class="kv-v">{{ snapshot.get('condition', '—') }}</div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">Lineage</div>
+          <div class="kv-v mono">{{ snapshot.get('lineage_id', '—') }}</div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">Ledger entries</div>
+          <div class="kv-v num">{{ ledger_count }}</div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-k">Protocol</div>
+          <div class="kv-v mono">{{ snapshot.get('protocol_version', '—') }}</div>
+        </div>
+        <div class="kv-item" style="grid-column: 1 / -1;">
+          <div class="kv-k">Memory state hash</div>
+          <div class="kv-v mono">{{ snapshot.get('memory_state_hash', '—') }}</div>
+        </div>
+      </div>
+      <div class="foot">
+        The memory-state hash fingerprints the agent's positions and self-model, and
+        deliberately excludes its substrate. It is a change detector, not a measure of
+        how much the agent has grown.
+      </div>
+      {% else %}
+        <div class="empty">Unavailable.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Epistemic positions — what it holds, and why</div>
+      {% if positions %}
+      <table class="rows">
+        <thead>
+          <tr>
+            <th>Position</th><th>Content</th><th>Grounds</th><th>Warrant</th><th>World</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for p in positions %}
+          <tr>
+            <td class="mono">{{ p.position }}</td>
+            <td>{{ p.content }}</td>
+            <td class="mono">
+              {%- for g in p.grounds %}{{ g.kind }}{% if not loop.last %}, {% endif %}{% endfor -%}
+            </td>
+            <td class="mono">{{ p.latest_warrant or '—' }}</td>
+            <td class="mono">
+              {%- if p.resolutions -%}{{ p.resolutions[-1].outcome }}{%- else -%}—{%- endif -%}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <div class="foot">
+        <strong>Position</strong> is the agent's relation to the claim, not its confidence:
+        <span class="mono">KNOW</span>, <span class="mono">BELIEVE</span>,
+        <span class="mono">DOUBT</span> (a position against it) and
+        <span class="mono">WITHHOLD</span> (declining to take one) are distinct, because not
+        knowing something is not the same as not believing it.
+        <strong>Warrant</strong> is a later assessment of how well the grounds support the
+        position — it never edits the position. <strong>World</strong> is what evidence later
+        did. A contradicted position stays held until the agent itself revises it, and a
+        revision creates a new position rather than overwriting the old one.
+      </div>
+      {% else %}
+        <div class="empty">No positions yet. The epistemic layer exists and is empty.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Autobiography — what it chose to write</div>
+      {% if chapters %}
+      <table class="rows">
+        <thead>
+          <tr><th>No.</th><th>Title</th><th>Written</th><th class="num">Chars</th></tr>
+        </thead>
+        <tbody>
+        {% for c in chapters %}
+          <tr>
+            <td class="num">{{ c.get('chapter_no') }}</td>
+            <td>
+              <a class="chapter-link" href="/organism/chapter/{{ c.get('chapter_no') }}">
+                {{ c.get('title') or '(untitled)' }}
+              </a>
+            </td>
+            <td>{{ (c.get('created_at') or '')[:19] | replace('T', ' ') }}</td>
+            <td class="num">{{ c.get('body_chars', '—') }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="empty">
+          No chapters yet. Chapter One must be earned — it is offered as an
+          occasion, never scripted, and the agent may decline.
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Battery runs</div>
+      {% if runs %}
+      <table class="rows">
+        <thead>
+          <tr><th>Run</th><th>Day</th><th>Label</th><th>When</th></tr>
+        </thead>
+        <tbody>
+        {% for r in runs %}
+          <tr>
+            <td class="num">{{ r.get('id') }}</td>
+            <td class="num">{{ r.get('day_index') }}</td>
+            <td>{{ r.get('label') or '—' }}</td>
+            <td>{{ (r.get('created_at') or '')[:19] | replace('T', ' ') }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <div class="foot">Battery hash <span class="mono">{{ battery_hash[:16] }}…</span> — the question set is frozen; a change to it would show here.</div>
+      {% else %}
+        <div class="empty">No battery runs recorded.</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Research ledger — most recent 40</div>
+      {% if entries %}
+      <table class="rows">
+        <thead>
+          <tr><th>When</th><th>Event</th><th>Day</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+        {% for e in entries %}
+          {# day_index is not a ledger column: each entry embeds the full state
+             snapshot taken at the moment it was appended. #}
+          {% set day = (e.get('state') or {}).get('day_index') %}
+          <tr>
+            <td>{{ (e.get('created_at') or '')[:19] | replace('T', ' ') }}</td>
+            <td class="mono">{{ e.get('event_type') or '—' }}</td>
+            <td class="num">{{ day if day is not none else '—' }}</td>
+            <td>{{ e.get('notes') or '' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="empty">Ledger is empty.</div>
+      {% endif %}
+    </div>
+
+    <div class="foot">
+      This page is strictly read-only. It cannot talk to the agent, trigger
+      consolidation, or occasion a chapter — every call it makes would otherwise
+      become an episode in the biography it is meant to observe.
+    </div>
+
+  </div>
+</div>
+{% endblock %}

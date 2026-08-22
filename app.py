@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
-TERRRA Europa — terrra-europa.com
+Nova Terrra Europa website — parameterised regional entity site.
+
+Every entity-identifying string (domain, brand, Firma, address, HRB, email
+addresses, country labels) is env-driven — see ENTITY_CONFIG below. To spin
+up a second regional entity clone docker-compose with a different set of env
+vars; no code changes needed.
+
 Multi-user auth, admin panel, email composer (Resend), contacts CRM.
 
 Email setup:
-  Receive — ImprovMX forwards *@terrra-europa.com to personal Gmail accounts.
+  Receive — ImprovMX forwards *@<DOMAIN> to personal Gmail accounts.
   Send    — Resend SMTP from Gmail "Send mail as", or from /compose on the website.
 """
 import io
@@ -18,6 +24,7 @@ import threading
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from markupsafe import Markup, escape
 
 import httpx
 import uvicorn
@@ -48,11 +55,107 @@ SMTP_HOST      = os.environ.get("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT      = int(os.environ.get("SMTP_PORT", "465"))
 SMTP_USER      = os.environ.get("SMTP_USER", "")
 SMTP_PASS      = os.environ.get("SMTP_PASS", "")
-FROM_EMAIL     = os.environ.get("FROM_EMAIL", "yuval@terrra-europa.com")
-FROM_NAME      = os.environ.get("FROM_NAME", "Yuval Lavi")
-NOTIFY_EMAIL   = os.environ.get("NOTIFY_EMAIL", "yuval@terrra-europa.com")
 GA4_ID         = os.environ.get("GA4_ID", "")
-DOMAIN         = "terrra-europa.com"
+
+# ── Digital-twin viewer ──────────────────────────────────────────────────────
+# Read-only window onto the persistent agent (the "Tuscany digital twin"). The
+# agent runs on a separate GPU host; this site never holds its state.
+#
+# ORGANISM_URL points at the twin's *viewer* service, not at the agent. The
+# viewer exposes only read routes, so the port reachable from here has no write
+# surface at all — the agent itself stays bound to loopback on its own host and
+# is never exposed. The allowlist below is therefore the second of two
+# independent checks, not the only one.
+ORGANISM_URL   = os.environ.get("ORGANISM_URL", "")
+ORGANISM_TOKEN = os.environ.get("ORGANISM_TOKEN", "")
+
+# Only these paths may be fetched, and only with GET. The agent also exposes
+# /chat, /consolidate, /genome/*, /actions/* and /research/battery/administer,
+# every one of which WRITES to the biography. A viewer that could reach them
+# would turn a reader into a participant and contaminate the experiment, so the
+# allowlist is positive: unlisted paths are refused rather than filtered.
+ORGANISM_READ_PATHS = {
+    "/health", "/genesis", "/constitution", "/memory", "/autobiography",
+    "/research/state", "/research/ledger", "/research/battery",
+    "/sensory/recent", "/audit", "/versions",
+    # The epistemic layer, read paths only. Every /epistemic/* WRITE path -- audit, resolve,
+    # revise -- is deliberately absent.
+    #
+    # `/time-zero` is NOT listed even though it has a GET, for the same reason
+    # /research/external is not: a GET and a POST share that URL, and the POST declares Time
+    # Zero irreversibly. Time Zero status is read from /health instead.
+    "/epistemic/propositions",
+}
+# Deliberately NOT listed: /research/external. It is the only agent path where a
+# GET and a POST share the same URL, so allowlisting it would leave the "no
+# writes" guarantee resting solely on this proxy always choosing GET. Excluding
+# it keeps the guarantee structural instead of behavioural.
+# Read paths with a trailing id segment, e.g. /autobiography/1 or
+# /research/battery/1/scores. Matched against a regex rather than a bare prefix:
+# "/research/battery/1/score" (singular) is a POST that runs the judge, and it
+# sits under the same prefix as the GET "/scores". Requiring the full shape to
+# match means that path is unreachable even if the method check were bypassed.
+ORGANISM_READ_PATTERNS = (
+    re.compile(r"^/autobiography/\d+$"),
+    re.compile(r"^/epistemic/propositions/\d+$"),
+    re.compile(r"^/research/battery/\d+$"),
+    re.compile(r"^/research/battery/\d+/scores$"),
+    re.compile(r"^/versions/\d+$"),
+)
+
+
+def _organism_path_allowed(path: str) -> bool:
+    if path in ORGANISM_READ_PATHS:
+        return True
+    return any(p.match(path) for p in ORGANISM_READ_PATTERNS)
+
+# ── Regional entity config (parameterised for multi-region reuse) ───────────
+# Every string that identifies the entity, its domain, its address, or its
+# legal-register data comes from env vars. To spin up a second regional
+# entity (e.g. Nova Terrra Africa) clone docker-compose with a different set
+# of these values — no code change needed.
+DOMAIN               = os.environ.get("DOMAIN",               "nova-terrra.eu")
+BRAND_NAME           = os.environ.get("BRAND_NAME",           "Nova Terrra Europa")
+LEGAL_ENTITY_NAME    = os.environ.get("LEGAL_ENTITY_NAME",    "Nova Terrra UG (haftungsbeschränkt)")
+LEGAL_ENTITY_HRB     = os.environ.get("LEGAL_ENTITY_HRB",     "HRB 200210")
+LEGAL_ENTITY_COURT   = os.environ.get("LEGAL_ENTITY_COURT",   "Amtsgericht Hamburg")
+LEGAL_ENTITY_DATE    = os.environ.get("LEGAL_ENTITY_DATE",    "09.07.2026")
+LEGAL_ENTITY_VAT_ID  = os.environ.get("LEGAL_ENTITY_VAT_ID",  "in Beantragung")
+LEGAL_STREET         = os.environ.get("LEGAL_STREET",         "Moorfuhrtweg 4")
+LEGAL_POSTCODE       = os.environ.get("LEGAL_POSTCODE",       "22301")
+LEGAL_CITY           = os.environ.get("LEGAL_CITY",           "Hamburg")
+LEGAL_COUNTRY_DE     = os.environ.get("LEGAL_COUNTRY_DE",     "Deutschland")
+LEGAL_COUNTRY_EN     = os.environ.get("LEGAL_COUNTRY_EN",     "Germany")
+LEGAL_COUNTRY_IT     = os.environ.get("LEGAL_COUNTRY_IT",     "Germania")
+
+FROM_EMAIL     = os.environ.get("FROM_EMAIL",     f"yuval@{DOMAIN}")
+FROM_NAME      = os.environ.get("FROM_NAME",      "Yuval Lavi")
+NOTIFY_EMAIL   = os.environ.get("NOTIFY_EMAIL",   f"yuval@{DOMAIN}")
+CONTACT_EMAIL  = os.environ.get("CONTACT_EMAIL",  f"info@{DOMAIN}")
+
+ENTITY_CONFIG = {
+    "domain":         DOMAIN,
+    "brand":          BRAND_NAME,
+    "legal_name":     LEGAL_ENTITY_NAME,
+    "hrb":            LEGAL_ENTITY_HRB,
+    "court":          LEGAL_ENTITY_COURT,
+    "reg_date":       LEGAL_ENTITY_DATE,
+    "vat_id":         LEGAL_ENTITY_VAT_ID,
+    "street":         LEGAL_STREET,
+    "postcode":       LEGAL_POSTCODE,
+    "city":           LEGAL_CITY,
+    "country_de":     LEGAL_COUNTRY_DE,
+    "country_en":     LEGAL_COUNTRY_EN,
+    "country_it":     LEGAL_COUNTRY_IT,
+    "contact_email":  CONTACT_EMAIL,
+    "from_email":     FROM_EMAIL,
+    "from_name":      FROM_NAME,
+}
+
+# Render legal pages against this entity config at startup — cheap enough
+# to do once at import, and it means we fail-fast if a required key is
+# missing rather than 500-ing on the first /impressum request.
+LEGAL_PAGES = legal_content.build_pages(ENTITY_CONFIG)
 
 
 _file_lock = threading.Lock()
@@ -65,9 +168,11 @@ app.mount("/static", StaticFiles(directory=str(PUBLIC_DIR)), name="static")
 
 
 def render(request: Request, name: str, ctx: dict | None = None):
-    """Render a template with i18n context auto-injected.
+    """Render a template with i18n + entity context auto-injected.
 
-    Adds: t (translator), lang, lang_labels, supported_langs, ga4_id, sun_cfg.
+    Adds: t (translator), lang, lang_labels, supported_langs, ga4_id, sun_cfg,
+    entity (the ENTITY_CONFIG dict), plus flat convenience aliases (brand,
+    domain, contact_email, legal_name).
     """
     lang = i18n.resolve_lang(request)
     base = {
@@ -77,6 +182,13 @@ def render(request: Request, name: str, ctx: dict | None = None):
         "supported_langs": i18n.SUPPORTED,
         "ga4_id": GA4_ID,
         "sun_cfg": _load_sun_config(),
+        # Entity config — see ENTITY_CONFIG above. Templates should prefer
+        # {{ brand }} / {{ domain }} / {{ contact_email }} over hard-coded strings.
+        "entity":        ENTITY_CONFIG,
+        "brand":         BRAND_NAME,
+        "domain":        DOMAIN,
+        "legal_name":    LEGAL_ENTITY_NAME,
+        "contact_email": CONTACT_EMAIL,
     }
     if ctx:
         base.update(ctx)
@@ -361,7 +473,7 @@ def _render_legal(request: Request, page: str, lang_override: str):
         active = "en"
     else:
         active = i18n.resolve_lang(request)
-    content = legal_content.PAGES[page][active]
+    content = LEGAL_PAGES[page][active]
     # Shell (cookie banner, footer links, html lang) follows the legal page's
     # own language — not the visitor's saved cookie — so the page is internally
     # consistent regardless of where the user came from.
@@ -374,6 +486,11 @@ def _render_legal(request: Request, page: str, lang_override: str):
         "t":           i18n.translator(active),
         "lang_labels": i18n.LANG_LABELS,
         "supported_langs": i18n.SUPPORTED,
+        "entity":        ENTITY_CONFIG,
+        "brand":         BRAND_NAME,
+        "domain":        DOMAIN,
+        "legal_name":    LEGAL_ENTITY_NAME,
+        "contact_email": CONTACT_EMAIL,
     })
 
 @app.get("/robots.txt")
@@ -444,8 +561,8 @@ async def contact(request: Request):
                    "institutional_partner": "Institutional partner",
                    "carbon_buyer": "Institutional partner",
                    "project_developer": "Project developer", "other": "Other"}
-    subject = f"TERRRA Europa — new contact: {role_labels.get(role, role)}"
-    msg = (f"New contact signup on terrra-europa.com\n\n"
+    subject = f"{BRAND_NAME} — new contact: {role_labels.get(role, role)}"
+    msg = (f"New contact signup on {DOMAIN}\n\n"
            f"Email: {email}\nRole:  {role_labels.get(role, role)}\n"
            f"Time:  {datetime.now(timezone.utc).isoformat()}\n")
     if RESEND_API_KEY or BREVO_API_KEY or (SMTP_USER and SMTP_PASS):
@@ -654,7 +771,7 @@ async def contacts_export(request: Request):
     writer.writeheader()
     writer.writerows(entries)
     buf.seek(0)
-    fname = f"terrra-europa-contacts-{datetime.now().strftime('%Y%m%d')}.csv"
+    fname = f"{DOMAIN}-contacts-{datetime.now().strftime('%Y%m%d')}.csv"
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
                              headers={"Content-Disposition": f"attachment; filename={fname}"})
 
@@ -880,6 +997,307 @@ async def admin_delete_user(request: Request, username: str):
     users = [u for u in _load_users() if u["username"] != username]
     _save_users(users)
     return RedirectResponse("/admin?deleted=1", status_code=303)
+
+
+# ── Digital-twin viewer (read-only) ──────────────────────────────────────────
+async def _organism_get(path: str) -> tuple[int, dict | list | None, str]:
+    """Fetch one read-only path from the agent. Returns (status, data, error).
+
+    The agent's token stays server-side: the browser never receives it, so a
+    reader cannot replay it against a write endpoint.
+    """
+    if not ORGANISM_URL or not ORGANISM_TOKEN:
+        return 503, None, "viewer is not configured (ORGANISM_URL / ORGANISM_TOKEN unset)"
+    if not _organism_path_allowed(path):
+        return 403, None, f"path not on the read-only allowlist: {path}"
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            # /api/ is the viewer's read-only passthrough; it re-checks the
+            # allowlist on its side before touching the agent.
+            r = await client.get(
+                f"{ORGANISM_URL.rstrip('/')}/api{path}",
+                headers={"X-Agent-Token": ORGANISM_TOKEN,
+                         "X-Operator-User": "viewer"},
+            )
+    except httpx.RequestError as exc:
+        return 502, None, f"agent unreachable: {type(exc).__name__}"
+    if r.status_code != 200:
+        return r.status_code, None, f"agent returned {r.status_code}"
+    try:
+        return 200, r.json(), ""
+    except ValueError:
+        return 502, None, "agent returned a non-JSON body"
+
+
+# ── UNDERSTANDING ─────────────────────────────────────────────────────────────
+# The organism's definition, rendered by SECTION rather than as one wall of text. The document is
+# already organised in Fibonacci counts -- Goal (1), Epistemic Test (1), Objectives (2), Concepts
+# (3), Architecture (5), Principles (8) -- and that structure is the argument, not decoration:
+# each layer is what the previous one makes possible. So the page follows it.
+#
+# A COPY, not the source. This site runs on a different host from the organism's repository, so
+# the definition ships with the site and `scripts/sync-understanding.sh` reports drift. A stale
+# copy of the document that defines what the organism IS would be worse than showing nothing,
+# which is why the drift check is a script rather than a comment.
+#
+# Read from disk, never proxied from the agent: this is what the humans defined, and a document
+# the organism could serve is a document it could be suspected of shaping.
+UNDERSTANDING_PATH = Path(os.environ.get(
+    "UNDERSTANDING_PATH", str(Path(__file__).parent / "public" / "docs" / "UNDERSTANDING.md")))
+
+# Short glosses for the section headings, so a reader arriving cold knows why each part exists.
+# Keyed on the heading text as written in the document.
+_SECTION_NOTES = {
+    "Goal": "What is being attempted, in one statement.",
+    "Epistemic Test": "How the question would be answered — and why there is no single test.",
+    "Objectives": "The two things that must both be true for the project to mean anything.",
+    "Concepts": "The distinctions the whole design rests on. Get these wrong and the rest is noise.",
+    "Architecture": "How the concepts become mechanisms.",
+    "Constitutional Principles": "Constraints the organism cannot edit, because a self that can "
+                                 "rewrite its own limits has none.",
+    "Current State": "Where the implementation actually is. This part expires.",
+    "Development Plan": "What is built, planned, and merely named.",
+    "Developmental Loop": "How a day in its life is meant to go.",
+    "Research Position": "What may and may not be claimed from any of this.",
+    "Working Method": "Who checks whom.",
+    "Genesis Principle": "Why it begins with a record it did not write.",
+}
+
+
+def _inline(text: str) -> Markup:
+    """Render `**bold**` and `` `code` `` as markup, and nothing else.
+
+    ESCAPES FIRST, then applies the two patterns. Order matters: the document is a file on disk
+    that a person edits, and interpolating it into a page unescaped would make any stray angle
+    bracket -- or anything worse -- into live HTML on a page served behind a login. Escaping
+    after substitution would defeat the substitution; escaping before means only these two
+    deliberate patterns survive.
+    """
+    safe = escape(text)
+    safe = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", str(safe))
+    safe = re.sub(r"`(.+?)`", r"<code>\1</code>", safe)
+    return Markup(safe)
+
+
+def _parse_understanding(text: str) -> list[dict[str, object]]:
+    """Split the document into top-level sections, each with its own subsections.
+
+    Deliberately a small parser rather than a Markdown library: the only structure this page
+    needs is `# heading`, `## subsection`, `### term` and paragraphs, and a dependency that
+    renders arbitrary HTML into a page served behind a login is a larger surface than the job
+    justifies.
+
+    Blank-line-delimited BLOCKS, not lines. The document is hard-wrapped at ~90 columns, so
+    treating each line as a paragraph turned every sentence into four stacked fragments and made
+    a 23,000-pixel page out of a readable document.
+    """
+    sections: list[dict[str, object]] = []
+    current: dict[str, object] | None = None
+    sub: dict[str, object] | None = None
+    pending: list[str] = []
+    pending_kind = "text"
+
+    def flush() -> None:
+        """Emit the accumulated lines as one paragraph."""
+        nonlocal pending, pending_kind
+        if not pending or current is None:
+            pending = []
+            pending_kind = "text"
+            return
+        target = sub["body"] if sub is not None else current["intro"]  # type: ignore[index]
+        if pending_kind == "bullet":
+            items = [x.rstrip(".").rstrip(";") for x in pending if x.strip()]
+            if items:
+                target.append({"kind": "list", "items": [_inline(x) for x in items]})
+        else:
+            joined = " ".join(pending).strip()
+            if joined:
+                target.append({"kind": pending_kind, "text": _inline(joined)})
+        pending = []
+        pending_kind = "text"
+
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        stripped = line.strip()
+
+        if stripped.startswith("# "):
+            flush()
+            title = stripped[2:].strip()
+            # Titles carry their Fibonacci count as "Concepts (3)". Keep the number: it is part
+            # of the design's claim about itself, not formatting.
+            name, _, count = title.partition(" (")
+            current = {"title": title, "name": name.strip(),
+                       "count": count.rstrip(")").strip(),
+                       "note": _SECTION_NOTES.get(name.strip(), ""),
+                       "intro": [], "subsections": []}
+            sections.append(current)
+            sub = None
+        elif stripped.startswith("## ") and current is not None:
+            flush()
+            sub = {"title": stripped[3:].strip(), "body": []}
+            current["subsections"].append(sub)          # type: ignore[union-attr]
+        elif stripped.startswith("### ") and current is not None:
+            flush()
+            # A defined term. Promoted to its own subsection when it appears outside one, so a
+            # glossary entry is never orphaned above the section it belongs to.
+            if sub is None:
+                sub = {"title": stripped[4:].strip(), "body": []}
+                current["subsections"].append(sub)      # type: ignore[union-attr]
+            else:
+                sub["body"].append({"kind": "term", "text": _inline(stripped[4:].strip())})
+        elif not stripped or stripped.startswith(("---", "|")):
+            # Blank line, rule or table row ends the current paragraph. Tables are skipped
+            # rather than mangled: this page is for reading the argument, and STATUS.md is where
+            # the tabular detail lives.
+            flush()
+        elif current is not None:
+            if stripped.startswith("- "):
+                # A real markdown bullet. Without this the run of them was joined into one
+                # paragraph and rendered as a single run-on line of semicolons.
+                if pending_kind != "bullet":
+                    flush()
+                    pending_kind = "bullet"
+                pending.append(stripped[2:].strip())
+            elif stripped.startswith(">"):
+                body = stripped.lstrip(">").strip()
+                if not body:                    # a bare '>' is quote spacing, not content
+                    flush()
+                    continue
+                if pending_kind != "quote":
+                    flush()
+                    pending_kind = "quote"
+                pending.append(body)
+            else:
+                if pending_kind != "text":
+                    flush()
+                pending.append(stripped)
+    flush()
+
+    # Runs of blank-line-separated fragments each ending in ';' are a LIST written as prose --
+    # "memory and autobiographical continuity;", "belief formation and revision;" and so on.
+    # Rendered as paragraphs they read as a stutter, so consecutive ones are merged into a single
+    # list block. Detected by the trailing semicolon rather than by indentation, because that is
+    # how the document actually marks them.
+    def _fold_lists(blocks: list[dict[str, str]]) -> list[dict[str, object]]:
+        out: list[dict[str, object]] = []
+        run: list[str] = []
+        for b in blocks:
+            # A block is either a paragraph-ish one carrying `text` or a list carrying `items`.
+            # Reading `text` unconditionally raised KeyError once real dash-bullets started
+            # producing list blocks here.
+            text = b.get("text", "")
+            if b["kind"] == "text" and str(text).endswith((";", ";.")):
+                run.append(Markup(str(text).rstrip(".").rstrip(";")))
+                continue
+            if run:
+                out.append({"kind": "list", "items": run})
+                run = []
+            out.append(b)
+        if run:
+            out.append({"kind": "list", "items": run})
+        return out
+
+    for section in sections:
+        section["intro"] = _fold_lists(section["intro"])        # type: ignore[arg-type]
+        for subsection in section["subsections"]:               # type: ignore[union-attr]
+            subsection["body"] = _fold_lists(subsection["body"])
+
+    # The document's own title block repeats the epigraph shown at the top of the page, so it
+    # would appear twice. Drop it rather than render it twice.
+    return [s for s in sections if not s["name"].startswith("Fibonacci Organism")]
+
+
+@app.get("/organism/understanding", response_class=HTMLResponse)
+async def organism_understanding(request: Request):
+    """The organism's definition. Static: it does not call the agent at all."""
+    s = _get_session(request)
+    if not s:
+        return RedirectResponse("/login", status_code=302)
+    try:
+        text = UNDERSTANDING_PATH.read_text(encoding="utf-8")
+    except OSError as exc:
+        return templates.TemplateResponse(request, "organism_understanding.html", {
+            "display_name": s["display_name"],
+            "sections": [],
+            "error": f"the definition is not available on this host ({type(exc).__name__})",
+        })
+    return templates.TemplateResponse(request, "organism_understanding.html", {
+        "display_name": s["display_name"],
+        "sections": _parse_understanding(text),
+        "error": "",
+    })
+
+
+@app.get("/organism", response_class=HTMLResponse)
+async def organism_page(request: Request):
+    s = _get_session(request)
+    if not s:
+        return RedirectResponse("/login", status_code=302)
+    if s.get("temp_auth"):
+        return RedirectResponse("/change-password", status_code=302)
+
+    _, health, health_err = await _organism_get("/health")
+    _, state, state_err = await _organism_get("/research/state")
+    _, chapters, chapters_err = await _organism_get("/autobiography")
+    _, ledger, ledger_err = await _organism_get("/research/ledger")
+    _, memory, memory_err = await _organism_get("/memory")
+
+    entries = (ledger or {}).get("entries", [])
+
+    return templates.TemplateResponse(request, "organism.html", {
+        "display_name":      s["display_name"],
+        "error":             health_err or state_err or chapters_err or ledger_err or memory_err,
+        "positions":         (memory or {}).get("epistemic_positions", []),
+        "time_zero_declared": bool((health or {}).get("time_zero_declared")),
+        "health":            health,
+        "snapshot":          (state or {}).get("snapshot", {}),
+        "battery_hash":      (state or {}).get("battery_hash", ""),
+        "runs":              (state or {}).get("battery_runs", []),
+        "entries":           entries[:40],
+        "ledger_count":      (ledger or {}).get("count", 0),
+        "chapters":          (chapters or {}).get("chapters", []),
+        "genesis_integrity": (chapters or {}).get("genesis_integrity"),
+    })
+
+
+@app.get("/organism/chapter/{chapter_no}", response_class=HTMLResponse)
+async def organism_chapter(request: Request, chapter_no: int):
+    s = _get_session(request)
+    if not s:
+        return RedirectResponse("/login", status_code=302)
+    # The agent returns the chapter object itself, not a wrapper.
+    status, data, err = await _organism_get(f"/autobiography/{chapter_no}")
+    return templates.TemplateResponse(request, "organism_chapter.html", {
+        "display_name": s["display_name"],
+        "chapter_no":   chapter_no,
+        "chapter":      data if isinstance(data, dict) else None,
+        "error":        err,
+    }, status_code=200 if status == 200 else 404)
+
+
+@app.get("/organism/genesis", response_class=HTMLResponse)
+async def organism_genesis(request: Request):
+    s = _get_session(request)
+    if not s:
+        return RedirectResponse("/login", status_code=302)
+    _, data, err = await _organism_get("/genesis")
+    return templates.TemplateResponse(request, "organism_genesis.html", {
+        "display_name": s["display_name"],
+        "genesis":      data,
+        "error":        err,
+    })
+
+
+@app.get("/organism/api/{path:path}")
+async def organism_api(request: Request, path: str):
+    """Pass-through for the raw JSON, same allowlist. Handy for inspection."""
+    s = _get_session(request)
+    if not s:
+        return JSONResponse({"error": "authentication required"}, status_code=401)
+    status, data, err = await _organism_get("/" + path)
+    if err:
+        return JSONResponse({"error": err}, status_code=status)
+    return JSONResponse(data)
 
 
 if __name__ == "__main__":
