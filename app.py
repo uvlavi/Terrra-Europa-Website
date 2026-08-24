@@ -1290,6 +1290,73 @@ async def organism_genesis(request: Request):
     })
 
 
+# ── Talking to the organism ───────────────────────────────────────────────────
+#
+# The ONE write path on this site, and the same discipline as the viewer's: a hardcoded target, no
+# caller-supplied URL component, and the read allowlist above left untouched. A conversation is a
+# write -- it appends an episode and may assert propositions the organism will then hold -- so this
+# cannot go through _organism_get, which exists to guarantee the opposite.
+#
+# Timeout: local inference measured at 62s on the GPU host. The read helper's 20s would abort a
+# normal reply while the organism kept generating and still committed the episode, showing an error
+# for a turn that really happened.
+ORGANISM_CHAT_TIMEOUT = float(os.environ.get("ORGANISM_CHAT_TIMEOUT", "300"))
+
+
+@app.get("/organism/talk", response_class=HTMLResponse)
+async def organism_talk(request: Request):
+    s = _get_session(request)
+    if not s:
+        return RedirectResponse("/login", status_code=302)
+    status, health, err = await _organism_get("/health")
+    return templates.TemplateResponse("talk.html", {
+        "request": request,
+        "viewer": s["username"],
+        "health": health or {},
+        "time_zero_declared": bool((health or {}).get("time_zero_declared")),
+        "error": err,
+    })
+
+
+@app.post("/organism/talk")
+async def organism_talk_send(request: Request):
+    s = _get_session(request)
+    if not s:
+        return JSONResponse({"error": "authentication required"}, status_code=401)
+    if not ORGANISM_URL or not ORGANISM_TOKEN:
+        return JSONResponse({"error": "viewer is not configured"}, status_code=503)
+    try:
+        body = await request.json()
+    except ValueError:
+        return JSONResponse({"error": "body must be JSON"}, status_code=400)
+    message = str(body.get("message", "")).strip()
+    if not message:
+        return JSONResponse({"error": "message is empty"}, status_code=400)
+    try:
+        async with httpx.AsyncClient(timeout=ORGANISM_CHAT_TIMEOUT) as client:
+            r = await client.post(
+                f"{ORGANISM_URL.rstrip('/')}/talk",       # the viewer's own write route, hardcoded
+                json={"message": message},
+                headers={"X-Agent-Token": ORGANISM_TOKEN,
+                         # Attribute the turn to the logged-in operator, not to "viewer": the
+                         # episode records who spoke to it, and that should be a real person.
+                         "X-Operator-User": s["username"]},
+            )
+    except httpx.TimeoutException:
+        return JSONResponse({"error": f"no reply within {ORGANISM_CHAT_TIMEOUT:.0f}s. The organism "
+                                      "may still be generating, and if it finishes the episode "
+                                      "WILL be recorded. Reload before resending, or you may "
+                                      "record two turns"}, status_code=504)
+    except httpx.RequestError as exc:
+        return JSONResponse({"error": f"agent unreachable: {type(exc).__name__}"}, status_code=502)
+    if r.status_code != 200:
+        return JSONResponse({"error": f"agent returned {r.status_code}"}, status_code=r.status_code)
+    try:
+        return JSONResponse(r.json())
+    except ValueError:
+        return JSONResponse({"error": "agent returned a non-JSON body"}, status_code=502)
+
+
 @app.get("/organism/api/{path:path}")
 async def organism_api(request: Request, path: str):
     """Pass-through for the raw JSON, same allowlist. Handy for inspection."""

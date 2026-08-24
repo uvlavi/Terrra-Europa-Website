@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Talk to the organism — Nova Terrra Europa{% endblock %}
+
+{#
+  WHY THIS PAGE SHOWS NO CONVERSATION HISTORY ON LOAD.
+
+  A chat UI normally restores the thread. This one deliberately does not, because the organism's
+  episodes are not a chat log -- they are its biography. Rendering them as "your conversation" would
+  invite reading a shared record as a private session, and would show turns from other operators and
+  other days as though they were this exchange. The autobiography and epistemic panels on /organism
+  are where the record is meant to be read, with their provenance intact.
+
+  So this page is a WRITE surface with a live echo, and the record is read where the record lives.
+#}
+
+{% block head %}
+<style>
+  .org-page { min-height: 100vh; padding: 48px 24px 60px; background: var(--bg); }
+  .org-inner { max-width: 820px; margin: 0 auto; }
+  .org-header { margin-bottom: 24px; }
+  .org-title { font-size: 1.5rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .org-subtitle { font-size: 0.9375rem; color: var(--text-secondary); }
+  .nav-row { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 22px; font-size: 0.875rem; }
+  .nav-row a { color: var(--accent, #2563eb); text-decoration: none; }
+
+  .banner { padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 0.875rem; line-height: 1.5; }
+  .banner-warn { background: rgba(234,179,8,.12); border: 1px solid rgba(234,179,8,.35); color: #92400e; }
+  .banner-err  { background: rgba(239,68,68,.10); border: 1px solid rgba(239,68,68,.32); color: #991b1b; }
+  .banner-info { background: rgba(37,99,235,.08); border: 1px solid rgba(37,99,235,.28); color: #1e40af; }
+
+  .turn { border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; font-size: 0.9375rem; line-height: 1.6; }
+  .turn-you { background: rgba(0,0,0,.035); border-left: 3px solid rgba(0,0,0,.25); }
+  .turn-it  { background: var(--surface, #fff); border: 1px solid var(--border, rgba(0,0,0,.08)); }
+  .turn-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .06em;
+                color: var(--text-secondary); margin-bottom: 6px; }
+  .turn-body { white-space: pre-wrap; word-wrap: break-word; }
+
+  /* The record-effect strip. Present on every reply, because every reply changed the record. */
+  .effect { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border, rgba(0,0,0,.12));
+            font-size: 0.8125rem; color: var(--text-secondary); }
+  .prop { margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: rgba(37,99,235,.06); }
+  .pos { font-weight: 700; letter-spacing: .03em; }
+  .grounds { color: var(--text-secondary); }
+
+  textarea { width: 100%; min-height: 90px; padding: 12px 14px; font: inherit; font-size: 0.9375rem;
+             border: 1px solid var(--border, rgba(0,0,0,.14)); border-radius: 10px; resize: vertical;
+             background: var(--surface, #fff); color: var(--text); }
+  .send-row { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+  button { padding: 10px 20px; font: inherit; font-weight: 600; border: 0; border-radius: 9px;
+           background: var(--accent, #2563eb); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .55; cursor: default; }
+  .hint { font-size: 0.8125rem; color: var(--text-secondary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="org-page"><div class="org-inner">
+
+  <div class="org-header">
+    <div class="org-title">Talk to the organism</div>
+    <div class="org-subtitle">
+      {{ health.get('agent', 'the agent') }} ·
+      {{ health.get('local_model', 'model unknown') }} ·
+      viewing as {{ viewer }}
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <a href="/organism">← Vital signs</a>
+    <a href="/organism/understanding">What it is</a>
+    <a href="/organism/genesis">Genesis Record</a>
+  </div>
+
+  {% if error %}
+    <div class="banner banner-err">
+      <strong>Cannot reach the agent.</strong> {{ error }}
+      <br>Sending is disabled: a message cannot be recorded if the organism is not running.
+    </div>
+  {% endif %}
+
+  {% if not time_zero_declared %}
+    <div class="banner banner-warn">
+      <strong>Prenatal — this is not the experiment yet.</strong>
+      Time Zero has not been declared, so this conversation is not part of a recorded life. This
+      organism's history is deliberately disposable and will be discarded when the experiment begins.
+    </div>
+  {% endif %}
+
+  <div class="banner banner-info">
+    <strong>Talking to it changes it.</strong> Every message appends an episode to its record, and
+    may cause it to assert propositions it will then hold. There is no draft mode and no way to
+    unsay a turn: the record is append-only by design. What each reply did to the record is shown
+    beneath the reply.
+    <br><br>
+    History is not shown here. Its episodes are its biography, not a chat log — read them on
+    <a href="/organism">vital signs</a>, where provenance and grounds are visible.
+  </div>
+
+  <div id="thread"></div>
+
+  <textarea id="msg" placeholder="Ask it something…"
+            {% if error %}disabled{% endif %}></textarea>
+  <div class="send-row">
+    <button id="send" {% if error %}disabled{% endif %}>Send</button>
+    <span class="hint" id="hint">Local inference on the project GPU. A reply usually takes 40–60s.</span>
+  </div>
+
+</div></div>
+
+<script>
+// Declared first: `const` is not hoisted, so referencing this inside send() while it sat at the
+// bottom of the file threw a ReferenceError on the first successful reply -- after the organism had
+// already answered and committed the episode. The reply would have been lost from the screen while
+// remaining in the record.
+const health_agent = {{ (health.get('agent') or 'Organism') | tojson }};
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function turn(who, cls, body, effectHtml) {
+  const d = document.createElement("div");
+  d.className = "turn " + cls;
+  d.innerHTML = `<div class="turn-label">${esc(who)}</div>`
+              + `<div class="turn-body">${esc(body)}</div>`
+              + (effectHtml || "");
+  $("thread").appendChild(d);
+  d.scrollIntoView({behavior: "smooth", block: "nearest"});
+  return d;
+}
+
+// What the turn did to the record. Rendered for EVERY reply -- including when nothing was
+// asserted, because "no proposition" is itself information about the turn.
+function effect(d) {
+  let h = `<div class="effect">episode ${esc(d.episode_id)} · provider ${esc(d.provider)}`;
+  const ps = d.propositions || [];
+  h += ps.length ? ` · wrote ${ps.length} proposition${ps.length > 1 ? "s" : ""}`
+                 : ` · asserted nothing`;
+  for (const p of ps) {
+    const g = (p.grounds || []).map(x => x && x.kind).filter(Boolean).join(", ") || "none stated";
+    h += `<div class="prop"><span class="pos">${esc(p.position)}</span> ${esc(p.content)}`
+       + `<br><span class="grounds">grounds: ${esc(g)}</span></div>`;
+  }
+  if (d.reflection) h += `<div class="prop">consolidation ran this turn</div>`;
+  return h + `</div>`;
+}
+
+let busy = false;
+async function send() {
+  if (busy) return;
+  const box = $("msg"), text = box.value.trim();
+  if (!text) return;
+
+  busy = true; $("send").disabled = true; box.disabled = true;
+  $("hint").textContent = "Thinking… do not reload: the turn is already being recorded.";
+  turn("You", "turn-you", text);
+  box.value = "";
+  const pending = turn("…", "turn-it", "");
+
+  try {
+    const r = await fetch("/organism/talk", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({message: text}),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      pending.className = "turn banner-err";
+      pending.innerHTML = `<div class="turn-label">Not delivered</div>`
+                        + `<div class="turn-body">${esc(d.error || r.status)}</div>`;
+    } else {
+      pending.innerHTML = `<div class="turn-label">${esc(health_agent)}</div>`
+                        + `<div class="turn-body">${esc(d.answer)}</div>`
+                        + effect(d);
+    }
+  } catch (e) {
+    pending.className = "turn banner-err";
+    pending.innerHTML = `<div class="turn-label">Not delivered</div>`
+                      + `<div class="turn-body">${esc(e)}</div>`;
+  } finally {
+    busy = false; $("send").disabled = false; box.disabled = false;
+    $("hint").textContent = "Local inference on the project GPU. A reply usually takes 40–60s.";
+    box.focus();
+  }
+}
+
+$("send").addEventListener("click", send);
+// Enter sends, Shift+Enter makes a newline. Ctrl/Cmd+Enter also sends, for muscle memory.
+$("msg").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+</script>
+{% endblock %}
