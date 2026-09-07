@@ -101,9 +101,14 @@
 
   <textarea id="msg" placeholder="Ask it something…"
             {% if error %}disabled{% endif %}></textarea>
+  <div id="attached" style="margin:6px 0;display:flex;flex-wrap:wrap;gap:6px;"></div>
   <div class="send-row">
     <button id="send" {% if error %}disabled{% endif %}>Send</button>
-    <span class="hint" id="hint">Local inference on the project GPU. A reply usually takes 40–60s.</span>
+    <label style="cursor:pointer;padding:6px 12px;border:1px solid var(--border,#3a3a3a);border-radius:8px;font-size:.9rem;">
+      📎 Attach
+      <input type="file" id="files" multiple hidden {% if error %}disabled{% endif %}>
+    </label>
+    <span class="hint" id="hint">Local inference on the project GPU. A reply usually takes 40–60s. Text files and PDFs can be attached; the organism reads text only.</span>
   </div>
 
 </div></div>
@@ -118,6 +123,35 @@ const health_agent = {{ (health.get('agent') or 'Organism') | tojson }};
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// Attachments: read files client-side to base64 and hand them to /organism/talk, which extracts
+// their text server-side and folds it into the message. The organism reads text only; PDFs are
+// text-extracted and images are declined.
+let attachments = [];
+const MAX_FILE = 4 * 1024 * 1024;
+function renderAttached() {
+  $("attached").innerHTML = attachments.map((a, i) =>
+    `<span style="background:var(--card,#222);border:1px solid var(--border,#3a3a3a);border-radius:12px;padding:3px 10px;font-size:.85rem;">`
+    + `${esc(a.name)} <a href="#" data-i="${i}" class="rm" style="text-decoration:none;color:inherit;">×</a></span>`).join("");
+  document.querySelectorAll("#attached .rm").forEach(el => el.onclick = ev => {
+    ev.preventDefault(); attachments.splice(Number(el.dataset.i), 1); renderAttached();
+  });
+}
+$("files").addEventListener("change", async ev => {
+  for (const f of ev.target.files) {
+    if (f.size > MAX_FILE) { alert(`${f.name} is larger than 4 MB and was skipped`); continue; }
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const rd = new FileReader();
+        rd.onload = () => res(String(rd.result).split(",").pop());
+        rd.onerror = rej; rd.readAsDataURL(f);
+      });
+      attachments.push({name: f.name, mime: f.type, b64});
+    } catch (e) { alert(`could not read ${f.name}`); }
+  }
+  ev.target.value = "";
+  renderAttached();
+});
 
 function turn(who, cls, body, effectHtml) {
   const d = document.createElement("div");
@@ -150,19 +184,20 @@ let busy = false;
 async function send() {
   if (busy) return;
   const box = $("msg"), text = box.value.trim();
-  if (!text) return;
+  if (!text && attachments.length === 0) return;
 
   busy = true; $("send").disabled = true; box.disabled = true;
   $("hint").textContent = "Thinking… do not reload: the turn is already being recorded.";
-  turn("You", "turn-you", text);
+  turn("You", "turn-you", text + (attachments.length ? `\n📎 ${attachments.map(a => a.name).join(", ")}` : ""));
   box.value = "";
+  const atts = attachments.slice(); attachments = []; renderAttached();
   const pending = turn("…", "turn-it", "");
 
   try {
     const r = await fetch("/organism/talk", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({message: text}),
+      body: JSON.stringify({message: text, attachments: atts}),
     });
     const d = await r.json();
     if (!r.ok) {
@@ -170,9 +205,12 @@ async function send() {
       pending.innerHTML = `<div class="turn-label">Not delivered</div>`
                         + `<div class="turn-body">${esc(d.error || r.status)}</div>`;
     } else {
-      pending.innerHTML = `<div class="turn-label">${esc(health_agent)}</div>`
-                        + `<div class="turn-body">${esc(d.answer)}</div>`
-                        + effect(d);
+      let html = `<div class="turn-label">${esc(health_agent)}</div>`
+               + `<div class="turn-body">${esc(d.answer)}</div>`
+               + effect(d);
+      if (d.attachment_notes && d.attachment_notes.length)
+        html += `<div class="effect">attachments: ${esc(d.attachment_notes.join("; "))}</div>`;
+      pending.innerHTML = html;
     }
   } catch (e) {
     pending.className = "turn banner-err";

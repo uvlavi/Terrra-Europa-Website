@@ -7,14 +7,15 @@ addresses, country labels) is env-driven — see ENTITY_CONFIG below. To spin
 up a second regional entity clone docker-compose with a different set of env
 vars; no code changes needed.
 
-Multi-user auth, admin panel, email composer (Resend), contacts CRM.
+Multi-user auth, admin panel, contacts CRM.
 
-Email setup:
-  Receive — ImprovMX forwards *@<DOMAIN> to personal Gmail accounts.
-  Send    — Resend SMTP from Gmail "Send mail as", or from /compose on the website.
+Email: handled entirely by Infomaniak kSuite (MX + kMail). This app sends no
+mail of its own; contact-form leads are stored in data/contacts.json.
 """
 import io
 import csv
+import base64
+import asyncio
 import os
 import json
 import hmac
@@ -48,14 +49,15 @@ ACCESS_KEY     = os.environ.get("ACCESS_KEY", "28061972")
 SESSION_TTL    = 60 * 60 * 24 * 30
 SESSION_COOKIE = "eu_session"
 
-EMAIL_PROVIDER = os.environ.get("EMAIL_PROVIDER", "resend")
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-BREVO_API_KEY  = os.environ.get("BREVO_API_KEY", "")
-SMTP_HOST      = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT      = int(os.environ.get("SMTP_PORT", "465"))
-SMTP_USER      = os.environ.get("SMTP_USER", "")
-SMTP_PASS      = os.environ.get("SMTP_PASS", "")
 GA4_ID         = os.environ.get("GA4_ID", "")
+
+# Lead-notification mail, via Infomaniak (the entity's own mail provider). This
+# is the ONLY mail the site sends, and only ever to NOTIFY_EMAIL — never to an
+# address supplied by a visitor, so the form cannot be used to mail strangers.
+SMTP_HOST = os.environ.get("SMTP_HOST", "mail.infomaniak.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
 
 # ── Digital-twin viewer ──────────────────────────────────────────────────────
 # Read-only window onto the persistent agent (the "Tuscany digital twin"). The
@@ -329,76 +331,6 @@ def _get_session(request: Request) -> dict | None:
         return None
     return s
 
-# ── Email sending ─────────────────────────────────────────────────────────────
-async def _send_email(to: str, subject: str, body: str,
-                      reply_to: str = None,
-                      from_email: str = None, from_name: str = None) -> dict:
-    f_email = from_email or FROM_EMAIL
-    f_name  = from_name  or FROM_NAME
-
-    if EMAIL_PROVIDER == "resend":
-        if not RESEND_API_KEY:
-            return {"ok": False, "error": "RESEND_API_KEY not set"}
-        payload = {"from": f"{f_name} <{f_email}>", "to": [to],
-                   "subject": subject, "text": body}
-        if reply_to:
-            payload["reply_to"] = reply_to
-        async with httpx.AsyncClient() as client:
-            r = await client.post("https://api.resend.com/emails",
-                headers={"Authorization": f"Bearer {RESEND_API_KEY}",
-                         "Content-Type": "application/json"},
-                json=payload, timeout=15)
-        return {"ok": True} if r.status_code in (200, 201) else {"ok": False, "error": r.text}
-
-    elif EMAIL_PROVIDER == "brevo":
-        if not BREVO_API_KEY:
-            return {"ok": False, "error": "BREVO_API_KEY not set"}
-        payload = {"sender": {"name": f_name, "email": f_email},
-                   "to": [{"email": to}], "subject": subject, "textContent": body}
-        if reply_to:
-            payload["replyTo"] = {"email": reply_to}
-        async with httpx.AsyncClient() as client:
-            r = await client.post("https://api.brevo.com/v3/smtp/email",
-                headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json"},
-                json=payload, timeout=15)
-        return {"ok": True} if r.status_code in (200, 201) else {"ok": False, "error": r.text}
-
-    else:
-        import smtplib, ssl
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-        if not SMTP_USER or not SMTP_PASS:
-            return {"ok": False, "error": "SMTP credentials not set"}
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = f"{f_name} <{f_email}>"
-        msg["To"]      = to
-        if reply_to:
-            msg["Reply-To"] = reply_to
-        msg.attach(MIMEText(body, "plain"))
-        try:
-            ctx = ssl.create_default_context()
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx) as s:
-                s.login(SMTP_USER, SMTP_PASS)
-                s.sendmail(f_email, [to], msg.as_string())
-            return {"ok": True}
-        except Exception as e:
-            return {"ok": False, "error": str(e)}
-
-# ── Send log ──────────────────────────────────────────────────────────────────
-def _log_send(sender: str, to: str, subject: str, ok: bool, error: str = ""):
-    log_path = DATA_DIR / "send_log.json"
-    entries = []
-    if log_path.exists():
-        try:
-            entries = json.loads(log_path.read_text())
-        except Exception:
-            pass
-    entries.append({"ts": datetime.now(timezone.utc).isoformat(),
-                    "sender": sender, "to": to, "subject": subject,
-                    "ok": ok, "error": error})
-    log_path.write_text(json.dumps(entries[-500:], indent=2))
-
 # ── Contacts ──────────────────────────────────────────────────────────────────
 def _read_contacts() -> list:
     p = DATA_DIR / "contacts.json"
@@ -500,10 +432,8 @@ async def robots():
         "Allow: /\n"
         "Disallow: /admin\n"
         "Disallow: /admin/\n"
-        "Disallow: /compose\n"
         "Disallow: /contacts\n"
         "Disallow: /change-password\n"
-        "Disallow: /forgot\n"
         "Disallow: /login\n"
         f"Sitemap: https://{DOMAIN}/sitemap.xml\n"
     )
@@ -536,12 +466,45 @@ async def sitemap():
     body += "</urlset>\n"
     return Response(content=body, media_type="application/xml")
 
-@app.get("/help", response_class=HTMLResponse)
-async def help_page(request: Request):
-    return templates.TemplateResponse(request, "help.html", {
-        "domain": DOMAIN,
-        "resend_api_key": RESEND_API_KEY,
-    })
+ROLE_LABELS = {"landowner": "Landowner / land manager",
+               "institutional_partner": "Institutional partner",
+               "carbon_buyer": "Institutional partner",
+               "project_developer": "Project developer",
+               "other": "Other"}
+
+
+def _notify_lead(email: str, role: str, ts: str) -> None:
+    """Mail NOTIFY_EMAIL about a new lead. Blocking, so callers run it in a thread.
+
+    Reply-To carries the visitor's address so replying goes straight to them —
+    the recipient is always NOTIFY_EMAIL, never visitor-supplied input.
+    """
+    if not (SMTP_USER and SMTP_PASS):
+        return
+    import smtplib, ssl
+    from email.message import EmailMessage
+
+    label = ROLE_LABELS.get(role, role)
+    msg = EmailMessage()
+    msg["Subject"]  = f"{BRAND_NAME} — new contact: {label}"
+    msg["From"]     = f"{FROM_NAME} <{SMTP_USER}>"
+    msg["To"]       = NOTIFY_EMAIL
+    msg["Reply-To"] = email
+    msg.set_content(f"New contact signup on {DOMAIN}\n\n"
+                    f"Email: {email}\n"
+                    f"Role:  {label}\n"
+                    f"Time:  {ts}\n\n"
+                    f"Reply to this message to answer them directly.\n")
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as s:
+            s.starttls(context=ssl.create_default_context())
+            s.login(SMTP_USER, SMTP_PASS)
+            s.send_message(msg)
+    except Exception as e:
+        # The lead is already persisted; a mail failure must not surface to the
+        # visitor or lose the record.
+        print(f"[lead-notify] failed for {email}: {e}", flush=True)
+
 
 @app.post("/contact")
 async def contact(request: Request):
@@ -556,17 +519,11 @@ async def contact(request: Request):
     # Visitor ID is only created at form submission (with explicit consent),
     # never on first page load — TTDSG § 25(1) compliance.
     visitor_id = request.cookies.get(VISITOR_COOKIE) or secrets.token_urlsafe(16)
-    _log_contact(email, role, visitor_id, consent_ts=datetime.now(timezone.utc).isoformat())
-    role_labels = {"landowner": "Landowner / land manager",
-                   "institutional_partner": "Institutional partner",
-                   "carbon_buyer": "Institutional partner",
-                   "project_developer": "Project developer", "other": "Other"}
-    subject = f"{BRAND_NAME} — new contact: {role_labels.get(role, role)}"
-    msg = (f"New contact signup on {DOMAIN}\n\n"
-           f"Email: {email}\nRole:  {role_labels.get(role, role)}\n"
-           f"Time:  {datetime.now(timezone.utc).isoformat()}\n")
-    if RESEND_API_KEY or BREVO_API_KEY or (SMTP_USER and SMTP_PASS):
-        await _send_email(to=NOTIFY_EMAIL, subject=subject, body=msg, reply_to=email)
+    ts = datetime.now(timezone.utc).isoformat()
+    _log_contact(email, role, visitor_id, consent_ts=ts)
+    # Persisted first, notified second, and off the request path: SMTP latency
+    # must not slow the form or let a mail error fail a captured lead.
+    asyncio.create_task(asyncio.to_thread(_notify_lead, email, role, ts))
     resp = JSONResponse({"ok": True})
     if not request.cookies.get(VISITOR_COOKIE):
         resp.set_cookie(VISITOR_COOKIE, visitor_id, max_age=VISITOR_TTL, samesite="lax")
@@ -577,7 +534,7 @@ async def contact(request: Request):
 async def login_page(request: Request, error: str = ""):
     s = _get_session(request)
     if s and not s.get("temp_auth"):
-        return RedirectResponse("/compose", status_code=302)
+        return RedirectResponse("/contacts", status_code=302)
     return templates.TemplateResponse(request, "login.html", {"error": error})
 
 @app.post("/login")
@@ -610,45 +567,10 @@ async def login_submit(request: Request,
     _save_users(users)
 
     token = _make_session(user, temp_auth=False)
-    resp = RedirectResponse("/compose", status_code=303)
+    resp = RedirectResponse("/contacts", status_code=303)
     resp.set_cookie(SESSION_COOKIE, token, max_age=SESSION_TTL,
                     httponly=True, samesite="lax")
     return resp
-
-@app.get("/forgot", response_class=HTMLResponse)
-async def forgot_page(request: Request, sent: str = "", error: str = ""):
-    return templates.TemplateResponse(request, "forgot.html",
-                                      {"sent": sent, "error": error})
-
-@app.post("/forgot")
-async def forgot_submit(username: str = Form(...)):
-    username = username.strip().lower()
-    user = _get_user(username)
-    # Always redirect with "sent" to avoid user enumeration
-    if not user or not user.get("external_email"):
-        return RedirectResponse("/forgot?sent=1", status_code=303)
-
-    temp_pw = _gen_temp_password()
-    ph, salt = _hash_password(temp_pw)
-
-    users = _load_users()
-    for u in users:
-        if u["username"] == username:
-            u["temp_password_hash"] = ph
-            u["temp_password_salt"] = salt
-    _save_users(users)
-
-    subject = "TERRRA Europa — your temporary login"
-    body = (f"Hi {user.get('display_name', username)},\n\n"
-            f"A temporary password was requested for your TERRRA Europa account.\n\n"
-            f"Username:          {username}\n"
-            f"Temporary password: {temp_pw}\n\n"
-            f"Login at: https://{DOMAIN}/login\n\n"
-            f"You will be asked to set a new password after logging in.\n\n"
-            f"If you did not request this, you can ignore this email.\n\n"
-            f"— TERRRA Europa\n")
-    await _send_email(to=user["external_email"], subject=subject, body=body)
-    return RedirectResponse("/forgot?sent=1", status_code=303)
 
 @app.get("/change-password", response_class=HTMLResponse)
 async def change_password_page(request: Request, error: str = ""):
@@ -685,7 +607,7 @@ async def change_password_submit(request: Request,
     if token and token in _sessions:
         _sessions[token]["temp_auth"] = False
 
-    return RedirectResponse("/compose", status_code=303)
+    return RedirectResponse("/contacts", status_code=303)
 
 @app.get("/logout")
 async def logout(request: Request):
@@ -697,45 +619,6 @@ async def logout(request: Request):
     return resp
 
 # ── Protected routes ──────────────────────────────────────────────────────────
-@app.get("/compose", response_class=HTMLResponse)
-async def compose_page(request: Request):
-    s = _get_session(request)
-    if not s:
-        return RedirectResponse("/login", status_code=302)
-    if s.get("temp_auth"):
-        return RedirectResponse("/change-password", status_code=302)
-    alias = s.get("email_alias", s["username"])
-    return templates.TemplateResponse(request, "compose.html", {
-        "sender_name":  s["display_name"],
-        "from_email":   f"{alias}@{DOMAIN}",
-        "is_admin":     s.get("is_admin", False),
-        "prefill_to":   request.query_params.get("to", ""),
-        "prefill_subj": request.query_params.get("subject", ""),
-    })
-
-@app.post("/send")
-async def send_email_route(request: Request,
-                            to: str = Form(...), subject: str = Form(...),
-                            body: str = Form(...), reply_to: str = Form(default="")):
-    s = _get_session(request)
-    if not s or s.get("temp_auth"):
-        return JSONResponse({"ok": False, "error": "Not authenticated"}, status_code=401)
-    if not to or "@" not in to:
-        return JSONResponse({"ok": False, "error": "Invalid recipient"})
-    if not subject.strip() or not body.strip():
-        return JSONResponse({"ok": False, "error": "Subject and body required"})
-
-    alias = s.get("email_alias", s["username"])
-    result = await _send_email(
-        to=to.strip(), subject=subject.strip(), body=body.strip(),
-        reply_to=reply_to.strip() or None,
-        from_email=f"{alias}@{DOMAIN}", from_name=s["display_name"]
-    )
-    _log_send(s["display_name"], to, subject, result["ok"], result.get("error", ""))
-    if result["ok"]:
-        return JSONResponse({"ok": True})
-    return JSONResponse({"ok": False, "error": result.get("error", "Send failed")}, status_code=500)
-
 @app.get("/contacts", response_class=HTMLResponse)
 async def contacts_page(request: Request):
     s = _get_session(request)
@@ -792,7 +675,6 @@ async def admin_page(request: Request):
         "users": users,
         "sender_name": s["username"],
         "domain": DOMAIN,
-        "resend_api_key": RESEND_API_KEY,
     })
 
 @app.post("/admin/users")
@@ -828,29 +710,9 @@ async def admin_create_user(request: Request,
     })
     _save_users(users)
 
-    # Welcome email — short, points to /help for Gmail setup
-    subject = "Welcome to TERRRA Europa"
-    body = f"""Hi {display_name.strip()},
-
-Your TERRRA Europa account is ready.
-
-Log in:    https://{DOMAIN}/login
-Username:  {username}
-Password:  {temp_pw}
-
-You'll set your own password on first login.
-
-Your email address is {username}@{DOMAIN} — all incoming mail is
-automatically forwarded to {external_email.strip()}.
-
-To send mail AS {username}@{DOMAIN} from your Gmail (so replies look
-like they come from your TERRRA address), follow the quick setup guide:
-  https://{DOMAIN}/help
-
-— TERRRA Europa
-"""
-    await _send_email(to=external_email.strip(), subject=subject, body=body)
-    return RedirectResponse("/admin?created=1", status_code=303)
+    # The temp password is shown to the admin to pass on out-of-band; the site
+    # no longer sends mail of its own.
+    return RedirectResponse(f"/admin?created=1&temp_pw={temp_pw}", status_code=303)
 
 @app.post("/admin/users/{username}/update")
 async def admin_update_user(request: Request, username: str,
@@ -877,8 +739,8 @@ async def admin_reset_user(request: Request, username: str):
     if not s:
         return RedirectResponse("/login", status_code=302)
     user = _get_user(username)
-    if not user or not user.get("external_email"):
-        return RedirectResponse("/admin?error=noemail", status_code=303)
+    if not user:
+        return RedirectResponse("/admin?error=nouser", status_code=303)
 
     temp_pw = _gen_temp_password()
     ph, salt = _hash_password(temp_pw)
@@ -889,46 +751,7 @@ async def admin_reset_user(request: Request, username: str):
             u["temp_password_salt"] = salt
     _save_users(users)
 
-    subject = "TERRRA Europa — new temporary password"
-    body = (f"Hi {user.get('display_name', username)},\n\n"
-            f"A new temporary password was issued for your account.\n\n"
-            f"Username:          {username}\n"
-            f"Temporary password: {temp_pw}\n\n"
-            f"Login at: https://{DOMAIN}/login\n\n"
-            f"— TERRRA Europa\n")
-    await _send_email(to=user["external_email"], subject=subject, body=body)
-    return RedirectResponse("/admin?reset=1", status_code=303)
-
-@app.post("/admin/users/{username}/send_setup")
-async def admin_send_setup(request: Request, username: str):
-    s = _require_admin(request)
-    if not s:
-        return RedirectResponse("/login", status_code=302)
-    user = _get_user(username)
-    if not user or not user.get("external_email"):
-        return RedirectResponse("/admin?error=noemail", status_code=303)
-
-    alias = user.get("email_alias", username)
-    name  = user.get("display_name", username)
-
-    subject = f"TERRRA Europa — email setup for {alias}@{DOMAIN}"
-    body = f"""Hi {name},
-
-Reminder: to send mail AS {alias}@{DOMAIN} from your Gmail account,
-follow the step-by-step guide here:
-
-  https://{DOMAIN}/help
-
-It takes about 3 minutes — you'll need the SMTP credentials shown on
-that page (they're the same for everyone on the team).
-
-Receiving works automatically: any mail sent to {alias}@{DOMAIN} is
-forwarded to {user['external_email']} with no setup needed.
-
-— TERRRA Europa
-"""
-    await _send_email(to=user["external_email"], subject=subject, body=body)
-    return RedirectResponse("/admin?setup_sent=1", status_code=303)
+    return RedirectResponse(f"/admin?reset=1&temp_pw={temp_pw}", status_code=303)
 
 @app.get("/admin/analytics", response_class=HTMLResponse)
 async def admin_analytics(request: Request):
@@ -1020,7 +843,10 @@ async def _organism_get(path: str) -> tuple[int, dict | list | None, str]:
                          "X-Operator-User": "viewer"},
             )
     except httpx.RequestError as exc:
-        return 502, None, f"agent unreachable: {type(exc).__name__}"
+        # 0 = no HTTP response at all: Nova could not reach the VIEWER (ORGANISM_URL). This is a
+        # DIFFERENT condition from the viewer being up and relaying a 502 because the agent behind
+        # it is down, and the page must tell them apart -- so it is a sentinel, not 502.
+        return 0, None, f"viewer unreachable: {type(exc).__name__}"
     if r.status_code != 200:
         return r.status_code, None, f"agent returned {r.status_code}"
     try:
@@ -1238,7 +1064,7 @@ async def organism_page(request: Request):
     if s.get("temp_auth"):
         return RedirectResponse("/change-password", status_code=302)
 
-    _, health, health_err = await _organism_get("/health")
+    h_status, health, health_err = await _organism_get("/health")
     _, state, state_err = await _organism_get("/research/state")
     _, chapters, chapters_err = await _organism_get("/autobiography")
     _, ledger, ledger_err = await _organism_get("/research/ledger")
@@ -1246,11 +1072,36 @@ async def organism_page(request: Request):
 
     entries = (ledger or {}).get("entries", [])
 
+    # Availability is derived ONLY from the /health probe, and lifecycle state is NEVER inferred
+    # from a missing /health (operator directive 2026-09-06). Four cases the page tells apart:
+    #   online             -- /health answered 200 with a body; time_zero_declared is trusted
+    #   viewer_unreachable -- Nova could not reach the viewer at all (sentinel status 0)
+    #   auth_or_config     -- the viewer answered 401/403/503 (token, allowlist, unset config)
+    #   agent_unavailable  -- the viewer is up but relayed an upstream error (e.g. 502: agent down)
+    health_available = h_status == 200 and health is not None
+    if health_available:
+        availability = "online"
+    elif h_status == 0:
+        availability = "viewer_unreachable"
+    elif h_status in (401, 403, 503):
+        availability = "auth_or_config"
+    else:
+        availability = "agent_unavailable"
+    # Prenatal wording is shown ONLY when /health explicitly reports time_zero_declared is False --
+    # never because /health was absent. `is False` is deliberate: a missing key (None) is "not
+    # known from here", not "prenatal".
+    tz = (health or {}).get("time_zero_declared") if health_available else None
+    show_prenatal = health_available and tz is False
+
     return templates.TemplateResponse(request, "organism.html", {
         "display_name":      s["display_name"],
-        "error":             health_err or state_err or chapters_err or ledger_err or memory_err,
+        "availability":      availability,
+        "health_available":  health_available,
+        # Raw upstream diagnostic, for small technical text only. Never used to infer state.
+        "diagnostic":        health_err or state_err or chapters_err or ledger_err or memory_err,
+        "show_prenatal":     show_prenatal,
         "positions":         (memory or {}).get("epistemic_positions", []),
-        "time_zero_declared": bool((health or {}).get("time_zero_declared")),
+        "time_zero_declared": tz,
         "health":            health,
         "snapshot":          (state or {}).get("snapshot", {}),
         "battery_hash":      (state or {}).get("battery_hash", ""),
@@ -1318,6 +1169,68 @@ async def organism_talk(request: Request):
     })
 
 
+# ── chat attachments ──────────────────────────────────────────────────────────────────────
+# Attachments are handled ENTIRELY here, at the website layer: each file's text is extracted and
+# folded into the message the organism already receives, exactly as if the operator had pasted it.
+# The agent's /chat contract is unchanged, so the organism's code -- and therefore its dna_id --
+# is untouched. Text files are read as text; PDFs are extracted with pypdf; images are declined
+# (the local model reads text only). Sizes are capped so a large upload cannot blow the context
+# window or the episode record. Nothing here fetches or executes anything.
+ATTACH_MAX_FILES = 12
+ATTACH_MAX_CHARS = 60_000        # per attachment, after extraction
+ATTACH_TOTAL_CHARS = 200_000     # across all attachments in one turn
+ATTACH_MAX_BYTES = 4_000_000     # raw decoded bytes per file
+
+
+def _extract_attachment_text(name: str, mime: str, b64: str) -> tuple[str, str]:
+    """Return (text_to_fold_in, user_facing_note). Text-only; never executes or fetches anything."""
+    try:
+        data = base64.b64decode(b64 or "", validate=False)
+    except Exception:
+        return "", f"could not read {name!r}"
+    if len(data) > ATTACH_MAX_BYTES:
+        return "", f"{name!r} is larger than 4 MB and was skipped"
+    low = name.lower()
+    if mime == "application/pdf" or low.endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(data))
+            text = "\n".join((pg.extract_text() or "") for pg in reader.pages).strip()
+        except Exception as exc:                                             # noqa: BLE001
+            return "", f"could not read PDF {name!r} ({type(exc).__name__})"
+        if not text:
+            return "", f"PDF {name!r} has no extractable text (a scanned image?) and was skipped"
+        return text[:ATTACH_MAX_CHARS], ""
+    if mime.startswith("image/"):
+        return "", f"image {name!r} skipped — the organism reads text only"
+    return data.decode("utf-8", errors="replace")[:ATTACH_MAX_CHARS], ""
+
+
+def _fold_attachments(message: str, attachments: object) -> "tuple[str, list[str]]":
+    """Combine the typed message with extracted attachment text, and collect user-facing notes."""
+    blocks: "list[str]" = []
+    notes: "list[str]" = []
+    budget = ATTACH_TOTAL_CHARS
+    if isinstance(attachments, list):
+        for att in attachments[:ATTACH_MAX_FILES]:
+            if not isinstance(att, dict):
+                continue
+            name = str(att.get("name", "attachment"))[:200]
+            mime = str(att.get("mime", ""))[:100]
+            text, note = _extract_attachment_text(name, mime, att.get("b64", ""))
+            if note:
+                notes.append(note)
+            if text:
+                text = text[:budget]
+                budget -= len(text)
+                blocks.append(f"\n\n----- attached file: {name} ({mime or 'text'}) -----\n"
+                              f"{text}\n----- end of {name} -----")
+                if budget <= 0:
+                    notes.append("attachment content was truncated to fit the context window")
+                    break
+    return message + "".join(blocks), notes
+
+
 @app.post("/organism/talk")
 async def organism_talk_send(request: Request):
     s = _get_session(request)
@@ -1330,13 +1243,15 @@ async def organism_talk_send(request: Request):
     except ValueError:
         return JSONResponse({"error": "body must be JSON"}, status_code=400)
     message = str(body.get("message", "")).strip()
-    if not message:
+    # Attachments are folded into the message text here; the agent still receives one {message}.
+    combined, attachment_notes = _fold_attachments(message, body.get("attachments"))
+    if not combined.strip():
         return JSONResponse({"error": "message is empty"}, status_code=400)
     try:
         async with httpx.AsyncClient(timeout=ORGANISM_CHAT_TIMEOUT) as client:
             r = await client.post(
                 f"{ORGANISM_URL.rstrip('/')}/talk",       # the viewer's own write route, hardcoded
-                json={"message": message},
+                json={"message": combined},
                 headers={"X-Agent-Token": ORGANISM_TOKEN,
                          # Attribute the turn to the logged-in operator, not to "viewer": the
                          # episode records who spoke to it, and that should be a real person.
@@ -1352,9 +1267,12 @@ async def organism_talk_send(request: Request):
     if r.status_code != 200:
         return JSONResponse({"error": f"agent returned {r.status_code}"}, status_code=r.status_code)
     try:
-        return JSONResponse(r.json())
+        payload = r.json()
     except ValueError:
         return JSONResponse({"error": "agent returned a non-JSON body"}, status_code=502)
+    if attachment_notes:
+        payload["attachment_notes"] = attachment_notes
+    return JSONResponse(payload)
 
 
 @app.get("/organism/api/{path:path}")
