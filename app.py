@@ -1289,15 +1289,156 @@ async def organism_api(request: Request, path: str):
 
 # ── Team routes (session-protected, any logged-in user) ──────────────────────
 
+PMO_FILE = DATA_DIR / "pmo.json"
+
+
+def _load_pmo() -> dict:
+    if not PMO_FILE.exists():
+        return {}
+    with open(PMO_FILE, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save_pmo(data: dict) -> None:
+    with open(PMO_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def _pmo_stats(data: dict) -> dict:
+    counts: dict = {
+        "Critical": 0, "High": 0, "Medium": 0, "Low": 0,
+        "Completed": 0, "Active": 0, "In Progress": 0, "Not Started": 0,
+        "Waiting": 0, "Blocked": 0, "Needs Verification": 0, "On Hold": 0,
+        "weekly": 0,
+    }
+    for area in data.get("areas", []):
+        for proj in area.get("projects", []):
+            for t in proj.get("tasks", []):
+                counts[t.get("priority", "")] = counts.get(t.get("priority", ""), 0) + 1
+                counts[t.get("status", "")] = counts.get(t.get("status", ""), 0) + 1
+                if t.get("weekly_review"):
+                    counts["weekly"] += 1
+    return counts
+
+
 @app.get("/team/pmo", response_class=HTMLResponse)
 async def team_pmo(request: Request):
     s = _get_session(request)
     if not s:
         return RedirectResponse("/login", status_code=302)
-    pmo_file = DATA_DIR / "pmo.html"
-    if not pmo_file.exists():
-        return HTMLResponse("<h1>PMO dashboard not generated yet</h1><p>Run /pmo-refresh to generate.</p>", status_code=404)
-    return HTMLResponse(pmo_file.read_text())
+    data = _load_pmo()
+    if not data:
+        return HTMLResponse(
+            "<h1>PMO dashboard not generated yet</h1>"
+            "<p>Run <code>/pmo-refresh</code> to generate, then upload pmo.json to data/.</p>",
+            status_code=404,
+        )
+    total_tasks = sum(
+        len(p["tasks"])
+        for a in data.get("areas", [])
+        for p in a.get("projects", [])
+    )
+    return _render(request, "team_pmo.html", {
+        "data": data,
+        "stats": _pmo_stats(data),
+        "total_tasks": total_tasks,
+    })
+
+
+@app.patch("/team/pmo/task/{task_id}")
+async def pmo_patch_task(task_id: str, request: Request):
+    s = _get_session(request)
+    if not s:
+        return JSONResponse({"error": "not authenticated"}, status_code=401)
+    fields = await request.json()
+    allowed = {
+        "title", "status", "priority", "owner", "due_date",
+        "next_action", "waiting_on", "blocker", "decision_needed",
+        "notes", "estimated_effort", "weekly_review",
+    }
+    data = _load_pmo()
+    for area in data.get("areas", []):
+        for proj in area.get("projects", []):
+            for task in proj.get("tasks", []):
+                if task["id"] == task_id:
+                    for k, v in fields.items():
+                        if k in allowed:
+                            task[k] = v
+                    import datetime
+                    task["updated_at"] = str(datetime.date.today())
+                    _save_pmo(data)
+                    return JSONResponse({"ok": True, "id": task_id})
+    return JSONResponse({"error": "task not found"}, status_code=404)
+
+
+@app.post("/team/pmo/tasks")
+async def pmo_add_task(request: Request):
+    s = _get_session(request)
+    if not s:
+        return JSONResponse({"error": "not authenticated"}, status_code=401)
+    payload = await request.json()
+    proj_id = payload.get("project_id", "")
+    if not proj_id or not payload.get("title"):
+        return JSONResponse({"error": "project_id and title required"}, status_code=400)
+
+    data = _load_pmo()
+    for area in data.get("areas", []):
+        for proj in area.get("projects", []):
+            if proj["id"] == proj_id:
+                # Derive next task ID: highest existing + 1 within this project
+                existing = [t["id"] for t in proj["tasks"]]
+                nums = []
+                for eid in existing:
+                    parts = eid.rsplit(".", 1)
+                    if len(parts) == 2 and parts[1].isdigit():
+                        nums.append(int(parts[1]))
+                next_num = max(nums, default=0) + 1
+                # task ID inherits project prefix, e.g. P1.1 → T1.1.N
+                new_id = "T" + proj_id[1:] + "." + str(next_num)
+                import datetime
+                new_task = {
+                    "id": new_id,
+                    "title": payload.get("title", "").strip(),
+                    "description": payload.get("description", "").strip(),
+                    "owner": payload.get("owner", "Yuval").strip(),
+                    "participants": [],
+                    "status": "Not Started",
+                    "priority": payload.get("priority", "High").strip(),
+                    "due_date": payload.get("due_date", "").strip(),
+                    "next_action": payload.get("next_action", "").strip(),
+                    "waiting_on": "",
+                    "blocker": "",
+                    "decision_needed": "",
+                    "last_known_update": "",
+                    "last_verified_date": str(datetime.date.today()),
+                    "source": "manual",
+                    "source_confidence": "Confirmed",
+                    "legal_entity": "",
+                    "weekly_review": False,
+                    "estimated_effort": "",
+                    "notes": payload.get("notes", "").strip(),
+                    "updated_at": str(datetime.date.today()),
+                }
+                proj["tasks"].append(new_task)
+                _save_pmo(data)
+                return JSONResponse({"ok": True, "id": new_id})
+    return JSONResponse({"error": "project not found"}, status_code=404)
+
+
+@app.get("/team/pmo/export")
+async def pmo_export(request: Request):
+    s = _get_session(request)
+    if not s:
+        return RedirectResponse("/login", status_code=302)
+    if not PMO_FILE.exists():
+        return JSONResponse({"error": "pmo.json not found"}, status_code=404)
+    content = PMO_FILE.read_bytes()
+    from fastapi.responses import Response as FastResponse
+    return FastResponse(
+        content=content,
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=pmo.json"},
+    )
 
 
 if __name__ == "__main__":

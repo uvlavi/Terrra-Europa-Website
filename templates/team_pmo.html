@@ -1,0 +1,671 @@
+{% extends "base.html" %}
+{% block title %}PMO Dashboard{% endblock %}
+
+{% block head_extra %}
+<style>
+  :root {
+    --olive: #5a6e3f;
+    --gold:  #c9a84c;
+    --sand:  #f5f0e8;
+    --red:   #c0392b;
+    --bg:    #fafaf8;
+  }
+  body { background: var(--bg); }
+
+  /* ── Top bar ── */
+  .pmo-header {
+    background: var(--olive);
+    color: #fff;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .pmo-header h1 { margin: 0; font-size: 1.1rem; letter-spacing: .03em; }
+  .pmo-meta { font-size: .78rem; opacity: .75; }
+  .pmo-header a.export-btn {
+    background: rgba(255,255,255,.18);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.4);
+    padding: .3rem .8rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: .78rem;
+    white-space: nowrap;
+  }
+  .pmo-header a.export-btn:hover { background: rgba(255,255,255,.28); }
+
+  /* ── Stats chips ── */
+  .stats-bar {
+    background: var(--sand);
+    border-bottom: 1px solid #e0d9cc;
+    padding: .6rem 1.5rem;
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .chip {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: .22rem .7rem;
+    font-size: .78rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s;
+  }
+  .chip:hover, .chip.active { background: var(--olive); color: #fff; border-color: var(--olive); }
+  .chip.crit { border-color: var(--red); color: var(--red); }
+  .chip.crit.active, .chip.crit:hover { background: var(--red); color: #fff; }
+
+  /* ── Search ── */
+  .search-row {
+    padding: .6rem 1.5rem;
+    border-bottom: 1px solid #e8e3d9;
+    background: #fff;
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+  }
+  .search-row input {
+    flex: 1;
+    max-width: 420px;
+    padding: .4rem .7rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: .88rem;
+  }
+  .search-row label { font-size: .82rem; color: #666; }
+
+  /* ── Tree ── */
+  .tree { padding: 1rem 1.5rem 3rem; }
+
+  .area-block { margin-bottom: 1.2rem; border: 1px solid #ddd; border-radius: 6px; background: #fff; overflow: hidden; }
+  .area-header {
+    background: var(--olive);
+    color: #fff;
+    padding: .55rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+  }
+  .area-header:hover { background: #4a5e32; }
+  .area-title { font-weight: 600; font-size: .95rem; }
+  .area-counts { font-size: .76rem; opacity: .8; }
+  .area-toggle { font-size: .85rem; transition: transform .2s; }
+  .area-block.collapsed .area-toggle { transform: rotate(-90deg); }
+
+  .proj-block { border-top: 1px solid #e8e3d9; }
+  .proj-header {
+    background: var(--sand);
+    padding: .4rem 1rem .4rem 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    font-size: .88rem;
+    font-weight: 600;
+    color: #3a3a2e;
+  }
+  .proj-header:hover { background: #ece7da; }
+  .proj-id { font-size: .75rem; color: #888; font-weight: normal; margin-right: .3rem; }
+  .proj-toggle { font-size: .78rem; color: #999; transition: transform .2s; }
+  .proj-block.collapsed .proj-toggle { transform: rotate(-90deg); }
+
+  /* ── Task table ── */
+  .task-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .task-table th {
+    background: #f5f3ef;
+    text-align: left;
+    padding: .35rem .6rem;
+    font-weight: 600;
+    color: #555;
+    border-bottom: 1px solid #ddd;
+    white-space: nowrap;
+  }
+  .task-table td { padding: .4rem .6rem; border-bottom: 1px solid #f0ece4; vertical-align: top; }
+  .task-row:last-child td { border-bottom: none; }
+  .task-row:hover td { background: #faf8f4; }
+  .task-row.hidden { display: none; }
+
+  .task-id { color: #aaa; font-size: .75rem; white-space: nowrap; }
+  .task-title { max-width: 320px; }
+  .task-title strong { display: block; }
+  .task-title .next-action { color: #666; font-size: .76rem; margin-top: .15rem; }
+  .task-owner { white-space: nowrap; }
+  .task-due { white-space: nowrap; color: #c0392b; font-weight: 500; }
+  .task-due.ok { color: #888; font-weight: normal; }
+
+  /* ── Status badges ── */
+  .status-badge {
+    display: inline-block;
+    padding: .18rem .55rem;
+    border-radius: 10px;
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity .15s;
+  }
+  .status-badge:hover { opacity: .8; }
+  .s-completed       { background: #d4edda; color: #155724; }
+  .s-active          { background: #cce5ff; color: #004085; }
+  .s-in-progress     { background: #cce5ff; color: #004085; }
+  .s-not-started     { background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; }
+  .s-waiting         { background: #fff3cd; color: #856404; }
+  .s-blocked         { background: #f8d7da; color: #721c24; }
+  .s-needs-verif     { background: #e2d9f3; color: #4a235a; }
+  .s-on-hold         { background: #e8e3d9; color: #555; }
+
+  .priority-badge {
+    display: inline-block;
+    padding: .12rem .4rem;
+    border-radius: 3px;
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .p-critical { background: var(--red); color: #fff; }
+  .p-high     { background: #e67e22; color: #fff; }
+  .p-medium   { background: var(--gold); color: #fff; }
+  .p-low      { background: #95a5a6; color: #fff; }
+
+  /* ── Action buttons ── */
+  .actions { display: flex; gap: .3rem; white-space: nowrap; }
+  .btn-sm {
+    padding: .18rem .5rem;
+    font-size: .72rem;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    cursor: pointer;
+    background: #fff;
+    color: #333;
+    transition: background .1s;
+  }
+  .btn-sm:hover { background: #f0ece4; }
+  .btn-done { border-color: #28a745; color: #28a745; }
+  .btn-done:hover { background: #d4edda; }
+  .btn-block { border-color: var(--red); color: var(--red); }
+  .btn-block:hover { background: #f8d7da; }
+
+  /* ── Add task row ── */
+  .add-task-row td { padding: .3rem .6rem; }
+  .btn-add-task {
+    background: none;
+    border: 1px dashed #bbb;
+    border-radius: 3px;
+    color: #888;
+    font-size: .78rem;
+    padding: .2rem .6rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+  }
+  .btn-add-task:hover { background: var(--sand); color: var(--olive); border-color: var(--olive); }
+
+  /* ── Edit / add modal overlay ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  }
+  .modal h3 { margin: 0 0 1rem; font-size: 1rem; color: var(--olive); }
+  .form-row { margin-bottom: .8rem; }
+  .form-row label { display: block; font-size: .8rem; font-weight: 600; margin-bottom: .25rem; color: #555; }
+  .form-row input, .form-row select, .form-row textarea {
+    width: 100%;
+    padding: .4rem .6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: .85rem;
+    box-sizing: border-box;
+  }
+  .form-row textarea { resize: vertical; min-height: 60px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
+  .btn-primary {
+    background: var(--olive);
+    color: #fff;
+    border: none;
+    padding: .45rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: .85rem;
+  }
+  .btn-primary:hover { background: #4a5e32; }
+  .btn-secondary {
+    background: #fff;
+    color: #555;
+    border: 1px solid #ccc;
+    padding: .45rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: .85rem;
+  }
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: #333;
+    color: #fff;
+    padding: .6rem 1.2rem;
+    border-radius: 6px;
+    font-size: .85rem;
+    z-index: 2000;
+    display: none;
+    animation: fadein .2s;
+  }
+  @keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pmo-header">
+  <div>
+    <h1>TERRRA PMO Dashboard</h1>
+    <div class="pmo-meta">{{ data.meta.generated_at }} · {{ total_tasks }} tasks across {{ data.areas|length }} areas</div>
+  </div>
+  <a href="/team/pmo/export" class="export-btn">↓ Export JSON</a>
+</div>
+
+<div class="stats-bar" id="statsBar">
+  <span class="chip active" data-filter="all">All ({{ total_tasks }})</span>
+  <span class="chip crit" data-filter="Critical">🔴 Critical ({{ stats.Critical }})</span>
+  <span class="chip" data-filter="Blocked">Blocked ({{ stats.Blocked }})</span>
+  <span class="chip" data-filter="Waiting">Waiting ({{ stats.Waiting }})</span>
+  <span class="chip" data-filter="Active">Active ({{ stats.Active }})</span>
+  <span class="chip" data-filter="In Progress">In Progress ({{ stats['In Progress'] }})</span>
+  <span class="chip" data-filter="Not Started">Not Started ({{ stats['Not Started'] }})</span>
+  <span class="chip" data-filter="Completed">✓ Completed ({{ stats.Completed }})</span>
+  <span class="chip" data-filter="weekly">📋 Weekly review ({{ stats.weekly }})</span>
+</div>
+
+<div class="search-row">
+  <input type="text" id="searchInput" placeholder="Search tasks, owners, notes…" oninput="applyFilters()">
+  <label><input type="checkbox" id="hideCompleted" onchange="applyFilters()"> Hide completed</label>
+</div>
+
+<div class="tree" id="tree">
+{% for area in data.areas %}
+<div class="area-block" id="area-{{ area.id }}">
+  <div class="area-header" onclick="toggleArea('{{ area.id }}')">
+    <span class="area-title">{{ area.name }}</span>
+    <span class="area-counts">
+      {{ area.projects|length }} projects ·
+      {% set tc = namespace(n=0) %}{% for p in area.projects %}{% set tc.n = tc.n + p.tasks|length %}{% endfor %}{{ tc.n }} tasks
+    </span>
+    <span class="area-toggle">▼</span>
+  </div>
+  <div class="area-body">
+  {% for proj in area.projects %}
+  <div class="proj-block" id="proj-{{ proj.id }}">
+    <div class="proj-header" onclick="toggleProj('{{ proj.id }}')">
+      <span>
+        <span class="proj-id">{{ proj.id }}</span>{{ proj.name }}
+      </span>
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <span style="font-size:.74rem;color:#888;font-weight:normal;">{{ proj.tasks|length }} tasks</span>
+        <span class="proj-toggle">▼</span>
+      </div>
+    </div>
+    <div class="proj-body">
+    <table class="task-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Task</th>
+          <th>Owner</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Due</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for task in proj.tasks %}
+      <tr class="task-row" id="row-{{ task.id }}"
+          data-status="{{ task.status }}"
+          data-priority="{{ task.priority }}"
+          data-weekly="{{ task.weekly_review|lower }}"
+          data-search="{{ task.id }} {{ task.title }} {{ task.owner }} {{ task.next_action }} {{ task.notes }} {{ task.waiting_on }} {{ task.blocker }}">
+        <td class="task-id">{{ task.id }}</td>
+        <td class="task-title">
+          <strong>{{ task.title }}</strong>
+          {% if task.next_action %}<div class="next-action">→ {{ task.next_action }}</div>{% endif %}
+          {% if task.blocker %}<div class="next-action" style="color:#c0392b;">⛔ {{ task.blocker }}</div>{% endif %}
+        </td>
+        <td class="task-owner">{{ task.owner }}</td>
+        <td>
+          {% set p = task.priority|lower %}
+          <span class="priority-badge p-{{ p }}">{{ task.priority }}</span>
+        </td>
+        <td>
+          {% set s = task.status|lower|replace(' ', '-')|replace('/', '-') %}
+          <span class="status-badge s-{{ s }}"
+                onclick="cycleStatus('{{ task.id }}', this)"
+                title="Click to cycle status">{{ task.status }}</span>
+        </td>
+        <td class="task-due {% if not task.due_date %}ok{% endif %}">
+          {{ task.due_date or '—' }}
+        </td>
+        <td class="actions">
+          <button class="btn-sm btn-done" onclick="markDone('{{ task.id }}')">✓ Done</button>
+          <button class="btn-sm" onclick="openEdit('{{ task.id }}')">Edit</button>
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="add-task-row">
+        <td colspan="7">
+          <button class="btn-add-task" onclick="openAdd('{{ proj.id }}', '{{ proj.name }}')">+ Add task to {{ proj.name }}</button>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% endfor %}
+  </div>
+</div>
+{% endfor %}
+</div>
+
+<!-- Edit modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3 id="editModalTitle">Edit task</h3>
+    <input type="hidden" id="editTaskId">
+    <div class="form-row"><label>Title</label><input type="text" id="editTitle"></div>
+    <div class="form-row"><label>Status</label>
+      <select id="editStatus">
+        <option>Not Started</option><option>Active</option><option>In Progress</option>
+        <option>Waiting</option><option>Blocked</option><option>Completed</option>
+        <option>On Hold</option><option>Needs Verification</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Priority</label>
+      <select id="editPriority">
+        <option>Critical</option><option>High</option><option>Medium</option><option>Low</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Owner</label><input type="text" id="editOwner"></div>
+    <div class="form-row"><label>Due date (YYYY-MM-DD)</label><input type="text" id="editDue" placeholder="2026-12-31"></div>
+    <div class="form-row"><label>Next action</label><input type="text" id="editNextAction"></div>
+    <div class="form-row"><label>Waiting on</label><input type="text" id="editWaitingOn"></div>
+    <div class="form-row"><label>Blocker</label><input type="text" id="editBlocker"></div>
+    <div class="form-row"><label>Notes</label><textarea id="editNotes"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+      <button class="btn-primary" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add task modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <h3 id="addModalTitle">Add task</h3>
+    <input type="hidden" id="addProjectId">
+    <div class="form-row"><label>Title</label><input type="text" id="addTitle"></div>
+    <div class="form-row"><label>Description</label><textarea id="addDescription"></textarea></div>
+    <div class="form-row"><label>Owner</label><input type="text" id="addOwner" value="Yuval"></div>
+    <div class="form-row"><label>Priority</label>
+      <select id="addPriority">
+        <option>High</option><option>Critical</option><option>Medium</option><option>Low</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Due date (YYYY-MM-DD)</label><input type="text" id="addDue" placeholder="optional"></div>
+    <div class="form-row"><label>Next action</label><input type="text" id="addNextAction"></div>
+    <div class="form-row"><label>Notes</label><textarea id="addNotes"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+      <button class="btn-primary" onclick="saveAdd()">Add task</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STATUS_CYCLE = [
+  'Not Started', 'In Progress', 'Active', 'Waiting', 'Blocked', 'Needs Verification', 'On Hold', 'Completed'
+];
+const STATUS_CLASS = {
+  'completed': 's-completed',
+  'active': 's-active',
+  'in-progress': 's-in-progress',
+  'not-started': 's-not-started',
+  'waiting': 's-waiting',
+  'blocked': 's-blocked',
+  'needs-verification': 's-needs-verif',
+  'on-hold': 's-on-hold',
+};
+
+function statusClass(s) {
+  return STATUS_CLASS[s.toLowerCase().replace(/ /g, '-').replace(/\//g, '-')] || 's-not-started';
+}
+
+function showToast(msg, ms = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, ms);
+}
+
+async function patchTask(id, fields) {
+  const r = await fetch(`/team/pmo/task/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(fields),
+  });
+  if (!r.ok) { showToast('⚠ Save failed'); return false; }
+  return true;
+}
+
+function updateRowStatus(id, newStatus) {
+  const row = document.getElementById('row-' + id);
+  if (!row) return;
+  row.dataset.status = newStatus;
+  const badge = row.querySelector('.status-badge');
+  if (badge) {
+    badge.textContent = newStatus;
+    badge.className = 'status-badge ' + statusClass(newStatus);
+  }
+}
+
+async function markDone(id) {
+  if (await patchTask(id, {status: 'Completed'})) {
+    updateRowStatus(id, 'Completed');
+    showToast('✓ Marked as completed');
+    applyFilters();
+  }
+}
+
+async function cycleStatus(id, badge) {
+  const cur = badge.textContent.trim();
+  const idx = STATUS_CYCLE.indexOf(cur);
+  const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+  if (await patchTask(id, {status: next})) {
+    updateRowStatus(id, next);
+    applyFilters();
+  }
+}
+
+// ── Edit modal ──────────────────────────────────────
+let _taskCache = {};
+{% for area in data.areas %}{% for proj in area.projects %}{% for task in proj.tasks %}
+_taskCache['{{ task.id }}'] = {
+  title: {{ task.title|tojson }},
+  status: {{ task.status|tojson }},
+  priority: {{ task.priority|tojson }},
+  owner: {{ task.owner|tojson }},
+  due_date: {{ task.due_date|tojson }},
+  next_action: {{ task.next_action|tojson }},
+  waiting_on: {{ task.waiting_on|tojson }},
+  blocker: {{ task.blocker|tojson }},
+  notes: {{ task.notes|tojson }},
+};
+{% endfor %}{% endfor %}{% endfor %}
+
+function openEdit(id) {
+  const t = _taskCache[id];
+  if (!t) return;
+  document.getElementById('editTaskId').value = id;
+  document.getElementById('editModalTitle').textContent = 'Edit ' + id;
+  document.getElementById('editTitle').value = t.title;
+  document.getElementById('editStatus').value = t.status;
+  document.getElementById('editPriority').value = t.priority;
+  document.getElementById('editOwner').value = t.owner;
+  document.getElementById('editDue').value = t.due_date;
+  document.getElementById('editNextAction').value = t.next_action;
+  document.getElementById('editWaitingOn').value = t.waiting_on;
+  document.getElementById('editBlocker').value = t.blocker;
+  document.getElementById('editNotes').value = t.notes;
+  document.getElementById('editModal').classList.add('open');
+}
+
+async function saveEdit() {
+  const id = document.getElementById('editTaskId').value;
+  const fields = {
+    title:        document.getElementById('editTitle').value,
+    status:       document.getElementById('editStatus').value,
+    priority:     document.getElementById('editPriority').value,
+    owner:        document.getElementById('editOwner').value,
+    due_date:     document.getElementById('editDue').value,
+    next_action:  document.getElementById('editNextAction').value,
+    waiting_on:   document.getElementById('editWaitingOn').value,
+    blocker:      document.getElementById('editBlocker').value,
+    notes:        document.getElementById('editNotes').value,
+  };
+  if (await patchTask(id, fields)) {
+    Object.assign(_taskCache[id], fields);
+    updateRowStatus(id, fields.status);
+    const row = document.getElementById('row-' + id);
+    if (row) {
+      row.querySelector('.task-title strong').textContent = fields.title;
+      let na = row.querySelector('.next-action');
+      if (fields.next_action) {
+        if (!na) { na = document.createElement('div'); na.className = 'next-action'; row.querySelector('.task-title').appendChild(na); }
+        na.textContent = '→ ' + fields.next_action;
+      } else if (na) { na.remove(); }
+      row.dataset.search = `${id} ${fields.title} ${fields.owner} ${fields.next_action} ${fields.notes} ${fields.waiting_on} ${fields.blocker}`;
+      row.dataset.priority = fields.priority;
+      const pb = row.querySelector('.priority-badge');
+      if (pb) { pb.textContent = fields.priority; pb.className = 'priority-badge p-' + fields.priority.toLowerCase(); }
+    }
+    closeModal('editModal');
+    showToast('Saved');
+    applyFilters();
+  }
+}
+
+// ── Add task modal ──────────────────────────────────
+function openAdd(projId, projName) {
+  document.getElementById('addProjectId').value = projId;
+  document.getElementById('addModalTitle').textContent = 'Add task to ' + projName;
+  document.getElementById('addTitle').value = '';
+  document.getElementById('addDescription').value = '';
+  document.getElementById('addOwner').value = 'Yuval';
+  document.getElementById('addPriority').value = 'High';
+  document.getElementById('addDue').value = '';
+  document.getElementById('addNextAction').value = '';
+  document.getElementById('addNotes').value = '';
+  document.getElementById('addModal').classList.add('open');
+}
+
+async function saveAdd() {
+  const projId = document.getElementById('addProjectId').value;
+  const payload = {
+    project_id:   projId,
+    title:        document.getElementById('addTitle').value.trim(),
+    description:  document.getElementById('addDescription').value.trim(),
+    owner:        document.getElementById('addOwner').value.trim(),
+    priority:     document.getElementById('addPriority').value,
+    due_date:     document.getElementById('addDue').value.trim(),
+    next_action:  document.getElementById('addNextAction').value.trim(),
+    notes:        document.getElementById('addNotes').value.trim(),
+  };
+  if (!payload.title) { showToast('Title required'); return; }
+
+  const r = await fetch('/team/pmo/tasks', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) { showToast('⚠ Add failed'); return; }
+  const data = await r.json();
+  closeModal('addModal');
+  showToast('Task ' + data.id + ' added — reload to see it in full');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── Filter / search ─────────────────────────────────
+let activeFilter = 'all';
+
+document.getElementById('statsBar').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  activeFilter = chip.dataset.filter;
+  applyFilters();
+});
+
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const hideCompleted = document.getElementById('hideCompleted').checked;
+
+  document.querySelectorAll('.task-row').forEach(row => {
+    const status = row.dataset.status;
+    const priority = row.dataset.priority;
+    const weekly = row.dataset.weekly === 'true';
+    const search = (row.dataset.search || '').toLowerCase();
+
+    let show = true;
+    if (q && !search.includes(q)) show = false;
+    if (hideCompleted && status === 'Completed') show = false;
+    if (activeFilter !== 'all') {
+      if (activeFilter === 'weekly') { if (!weekly) show = false; }
+      else if (activeFilter === 'Critical') { if (priority !== 'Critical') show = false; }
+      else { if (status !== activeFilter) show = false; }
+    }
+    row.classList.toggle('hidden', !show);
+  });
+}
+
+// ── Collapse helpers ────────────────────────────────
+function toggleArea(id) {
+  document.getElementById('area-' + id).classList.toggle('collapsed');
+}
+function toggleProj(id) {
+  document.getElementById('proj-' + id).classList.toggle('collapsed');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+</script>
+{% endblock %}
