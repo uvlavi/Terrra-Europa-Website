@@ -1,3 +1,11 @@
-terrra-europa.com, www.terrra-europa.com {
+# Canonical domain — Nova Terrra Europa
+nova-terrra.eu, www.nova-terrra.eu {
   reverse_proxy europa:8103
+}
+
+# Legacy domain — 301-redirect all traffic to the canonical.
+# Path is preserved (so a link to /impressum on the old domain lands on
+# nova-terrra.eu/impressum).
+terrra-europa.com, www.terrra-europa.com {
+  redir https://nova-terrra.eu{uri} 301
 }

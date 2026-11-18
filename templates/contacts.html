@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Contacts — TERRRA Europa{% endblock %}
+{% block title %}Contacts — Nova Terrra Europa{% endblock %}
 
 {% block head %}
 <style>
@@ -67,8 +67,8 @@
 
 {% block nav_action %}
 <div class="nav-action">
+  <a href="/organism">MEMENTO</a>
   {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
-  <a href="/compose">Compose</a>
   {% if is_admin %}<a href="/admin/analytics">Analytics</a>{% endif %}
   <a href="/logout">Sign out</a>
 </div>
@@ -81,7 +81,7 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">Contacts</h1>
-        <p class="page-meta">People who left their details on terrra-europa.com</p>
+        <p class="page-meta">People who left their details on nova-terrra.eu</p>
       </div>
       <a href="/contacts/export" class="export-btn">
         <iconify-icon icon="eva:download-fill"></iconify-icon>

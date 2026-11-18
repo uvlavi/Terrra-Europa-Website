@@ -87,15 +87,27 @@
       </div>
     </div>
 
-    {% if error %}
-      <div class="banner banner-err">
-        <strong>Cannot reach the agent.</strong> {{ error }}
-        <br>The agent runs on a separate host; if it is stopped, this page has
-        nothing to show. Nothing is broken here.
+    {% if not health_available %}
+      <div class="banner banner-warn">
+        {% if availability == "viewer_unreachable" %}
+          <strong>The organism view is temporarily unavailable.</strong>
+          The viewer service that fronts the organism could not be reached, so nothing below
+          can be shown. This may be expected during maintenance.
+        {% elif availability == "auth_or_config" %}
+          <strong>The organism view is not available.</strong>
+          This page is not currently authorized or configured to read the organism.
+        {% else %}
+          <strong>The organism is currently offline.</strong>
+          Its lifecycle state cannot be confirmed while the agent is unavailable.
+          This may be expected during pre-birth preparation or maintenance.
+        {% endif %}
+        {% if diagnostic %}
+          <br><small style="opacity:.55;font-family:monospace">{{ diagnostic }}</small>
+        {% endif %}
       </div>
     {% endif %}
 
-    {% if not time_zero_declared %}
+    {% if show_prenatal %}
       <div class="banner banner-warn">
         <strong>Prenatal — this is not the experiment yet.</strong>
         Time Zero has not been declared, so nothing below is part of a recorded life.

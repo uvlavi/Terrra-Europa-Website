@@ -1,5 +1,5 @@
 """
-Legal page content for /impressum and /datenschutz.
+Legal page content for /impressum and /datenschutz — parameterised.
 
 The German version is the legally binding one (TMG §5, DSGVO).
 EN and IT are courtesy translations only — the DE text governs.
@@ -7,38 +7,34 @@ EN and IT are courtesy translations only — the DE text governs.
 Content discipline: only what the law requires plus what reasonable
 German business practice expects. No unnecessary disclosure of
 internal references, file numbers, or governance details.
+
+All entity-identifying strings come from the ENTITY_CONFIG dict passed
+into `build_pages(cfg)`. To render this site for a different regional
+entity (e.g. Nova Terrra Africa), pass a different config dict.
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
-# IMPRESSUM (TMG §5)
+# IMPRESSUM (TMG §5) — templates
 # ──────────────────────────────────────────────────────────────────────────────
 
-IMPRESSUM_DE = """
+IMPRESSUM_DE_TEMPLATE = """
 <h1>Impressum</h1>
-<p class="updated">Gemäß § 5 TMG · Stand: Juni 2026</p>
-
-<div class="notice-warn">
-  <p><strong>Hinweis:</strong> Die Gesellschaft befindet sich derzeit im
-  Gründungsstadium (i.&nbsp;G.). Die Eintragung in das Handelsregister beim
-  Amtsgericht Hamburg ist beantragt. Handelsregisternummer (HRB) und
-  Umsatzsteuer-Identifikationsnummer (USt-IdNr.) werden hier nach Erteilung
-  ergänzt.</p>
-</div>
+<p class="updated">Gemäß § 5 TMG · Stand: {stand}</p>
 
 <h2>Angaben gemäß § 5 TMG</h2>
 <div class="meta-block">
-  <p><strong>Terrra Europa UG (haftungsbeschränkt) i.&nbsp;G.</strong></p>
-  <p>Moorfuhrtweg 4</p>
-  <p>22301 Hamburg</p>
-  <p>Deutschland</p>
-  <p>Handelsregister: HRB — wird nach Eintragung ergänzt</p>
-  <p>USt-IdNr.: in Beantragung</p>
+  <p><strong>{legal_name}</strong></p>
+  <p>{street}</p>
+  <p>{postcode} {city}</p>
+  <p>{country_de}</p>
+  <p>Handelsregister: {hrb}, {court}</p>
+  <p>USt-IdNr.: {vat_id}</p>
 </div>
 
 <h2>Vertretung und Verantwortung</h2>
 <div class="meta-block">
   <p>Geschäftsführer und Verantwortlicher für den Inhalt gemäß § 18 Abs. 2 MStV: Yuval Lavi (Anschrift wie oben).</p>
-  <p>E-Mail: <a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a></p>
+  <p>E-Mail: <a href="mailto:{contact_email}">{contact_email}</a></p>
 </div>
 
 <h2>Haftung und Urheberrecht</h2>
@@ -53,35 +49,29 @@ IMPRESSUM_DE = """
 </div>
 """
 
-IMPRESSUM_EN = """
+IMPRESSUM_EN_TEMPLATE = """
 <h1>Legal notice (Impressum)</h1>
-<p class="updated">Pursuant to § 5 of the German Telemedia Act (TMG) · As of June 2026</p>
+<p class="updated">Pursuant to § 5 of the German Telemedia Act (TMG) · As of {stand_en}</p>
 
 <div class="notice-warn">
   <p><strong>Language notice:</strong> The German version of this notice is
   the legally binding one. This English version is provided for convenience only.</p>
-  <p><strong>Formation notice:</strong> The company is currently in the
-  formation stage (<em>in Gründung / i.&nbsp;G.</em>). Registration with the
-  commercial register at the Amtsgericht Hamburg has been filed. The
-  Commercial Register number (HRB) and VAT identification number (USt-IdNr.)
-  will be added here once issued.</p>
 </div>
 
 <h2>Information pursuant to § 5 TMG</h2>
 <div class="meta-block">
-  <p><strong>Terrra Europa UG (haftungsbeschränkt) i.&nbsp;G.</strong>
-  &nbsp; <em>(German limited-liability entrepreneurial company, in formation)</em></p>
-  <p>Moorfuhrtweg 4</p>
-  <p>22301 Hamburg</p>
-  <p>Germany</p>
-  <p>Commercial register: HRB — to be added on registration</p>
-  <p>VAT ID (USt-IdNr.): pending application</p>
+  <p><strong>{legal_name}</strong></p>
+  <p>{street}</p>
+  <p>{postcode} {city}</p>
+  <p>{country_en}</p>
+  <p>Commercial register: {hrb}, {court}</p>
+  <p>VAT ID (USt-IdNr.): {vat_id}</p>
 </div>
 
 <h2>Representation and content responsibility</h2>
 <div class="meta-block">
   <p>Managing Director and person responsible for content under § 18 (2) MStV: Yuval Lavi (address as above).</p>
-  <p>Email: <a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a></p>
+  <p>Email: <a href="mailto:{contact_email}">{contact_email}</a></p>
 </div>
 
 <h2>Liability and copyright</h2>
@@ -95,36 +85,30 @@ IMPRESSUM_EN = """
 </div>
 """
 
-IMPRESSUM_IT = """
+IMPRESSUM_IT_TEMPLATE = """
 <h1>Note legali (Impressum)</h1>
-<p class="updated">Ai sensi del § 5 della Legge tedesca sui media telematici (TMG) · Giugno 2026</p>
+<p class="updated">Ai sensi del § 5 della Legge tedesca sui media telematici (TMG) · {stand_it}</p>
 
 <div class="notice-warn">
   <p><strong>Avviso linguistico:</strong> La versione tedesca di queste
   note legali è quella legalmente vincolante. Questa traduzione italiana è
   fornita solo per comodità.</p>
-  <p><strong>Avviso di costituzione:</strong> La società è attualmente in
-  fase di costituzione (<em>in Gründung / i.&nbsp;G.</em>). La registrazione
-  presso il Registro delle imprese del Tribunale di Hamburg è stata
-  depositata. Il numero di Registro delle imprese (HRB) e la partita IVA
-  (USt-IdNr.) saranno aggiunti dopo il rilascio.</p>
 </div>
 
 <h2>Informazioni ai sensi del § 5 TMG</h2>
 <div class="meta-block">
-  <p><strong>Terrra Europa UG (haftungsbeschränkt) i.&nbsp;G.</strong>
-  &nbsp; <em>(società tedesca a responsabilità limitata semplificata, in costituzione)</em></p>
-  <p>Moorfuhrtweg 4</p>
-  <p>22301 Hamburg</p>
-  <p>Germania</p>
-  <p>Registro delle imprese: HRB — sarà aggiunto dopo la registrazione</p>
-  <p>Partita IVA (USt-IdNr.): in fase di richiesta</p>
+  <p><strong>{legal_name}</strong></p>
+  <p>{street}</p>
+  <p>{postcode} {city}</p>
+  <p>{country_it}</p>
+  <p>Registro delle imprese: {hrb}, {court}</p>
+  <p>Partita IVA (USt-IdNr.): {vat_id}</p>
 </div>
 
 <h2>Rappresentanza e responsabilità dei contenuti</h2>
 <div class="meta-block">
   <p>Amministratore e responsabile dei contenuti ai sensi del § 18 (2) MStV: Yuval Lavi (indirizzo come sopra).</p>
-  <p>E-mail: <a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a></p>
+  <p>E-mail: <a href="mailto:{contact_email}">{contact_email}</a></p>
 </div>
 
 <h2>Responsabilità e diritto d'autore</h2>
@@ -139,19 +123,19 @@ IMPRESSUM_IT = """
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
-# DATENSCHUTZERKLÄRUNG (DSGVO Art. 13)
+# DATENSCHUTZERKLÄRUNG (DSGVO Art. 13) — templates
 # ──────────────────────────────────────────────────────────────────────────────
 
-DATENSCHUTZ_DE = """
+DATENSCHUTZ_DE_TEMPLATE = """
 <h1>Datenschutzerklärung</h1>
-<p class="updated">Gemäß DSGVO Art. 13 · Stand: Juni 2026</p>
+<p class="updated">Gemäß DSGVO Art. 13 · Stand: {stand}</p>
 
 <h2>1. Verantwortliche Stelle</h2>
 <div class="meta-block">
-  <p>Terrra Europa UG (haftungsbeschränkt) i.&nbsp;G.</p>
-  <p>Moorfuhrtweg 4, 22301 Hamburg, Deutschland</p>
+  <p>{legal_name}</p>
+  <p>{street}, {postcode} {city}, {country_de}</p>
   <p>Geschäftsführer: Yuval Lavi</p>
-  <p>E-Mail: <a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a></p>
+  <p>E-Mail: <a href="mailto:{contact_email}">{contact_email}</a></p>
 </div>
 
 <h2>2. Welche Daten wir verarbeiten und warum</h2>
@@ -211,7 +195,7 @@ DATENSCHUTZ_DE = """
   Beauftragte für Datenschutz und Informationsfreiheit,
   Ludwig-Erhard-Straße 22, 20459 Hamburg.</p>
   <p>Zur Ausübung Ihrer Rechte wenden Sie sich bitte an
-  <a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a>.</p>
+  <a href="mailto:{contact_email}">{contact_email}</a>.</p>
 </div>
 
 <h2>5. Sicherheit</h2>
@@ -220,9 +204,9 @@ DATENSCHUTZ_DE = """
 </div>
 """
 
-DATENSCHUTZ_EN = """
+DATENSCHUTZ_EN_TEMPLATE = """
 <h1>Privacy policy</h1>
-<p class="updated">Pursuant to GDPR Art. 13 · As of June 2026</p>
+<p class="updated">Pursuant to GDPR Art. 13 · As of {stand_en}</p>
 
 <div class="notice-warn">
   <p><strong>Language notice:</strong> The German version of this policy is
@@ -231,10 +215,10 @@ DATENSCHUTZ_EN = """
 
 <h2>1. Data controller</h2>
 <div class="meta-block">
-  <p>Terrra Europa UG (haftungsbeschränkt) i.&nbsp;G.</p>
-  <p>Moorfuhrtweg 4, 22301 Hamburg, Germany</p>
+  <p>{legal_name}</p>
+  <p>{street}, {postcode} {city}, {country_en}</p>
   <p>Managing Director: Yuval Lavi</p>
-  <p>Email: <a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a></p>
+  <p>Email: <a href="mailto:{contact_email}">{contact_email}</a></p>
 </div>
 
 <h2>2. What data we process and why</h2>
@@ -291,7 +275,7 @@ DATENSCHUTZ_EN = """
   for Data Protection and Freedom of Information, Ludwig-Erhard-Straße 22,
   20459 Hamburg.</p>
   <p>To exercise your rights, contact
-  <a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a>.</p>
+  <a href="mailto:{contact_email}">{contact_email}</a>.</p>
 </div>
 
 <h2>5. Security</h2>
@@ -300,9 +284,9 @@ DATENSCHUTZ_EN = """
 </div>
 """
 
-DATENSCHUTZ_IT = """
+DATENSCHUTZ_IT_TEMPLATE = """
 <h1>Informativa sulla privacy</h1>
-<p class="updated">Ai sensi dell'art. 13 GDPR · Giugno 2026</p>
+<p class="updated">Ai sensi dell'art. 13 GDPR · {stand_it}</p>
 
 <div class="notice-warn">
   <p><strong>Avviso linguistico:</strong> La versione tedesca di questa
@@ -312,10 +296,10 @@ DATENSCHUTZ_IT = """
 
 <h2>1. Titolare del trattamento</h2>
 <div class="meta-block">
-  <p>Terrra Europa UG (haftungsbeschränkt) i.&nbsp;G.</p>
-  <p>Moorfuhrtweg 4, 22301 Hamburg, Germania</p>
+  <p>{legal_name}</p>
+  <p>{street}, {postcode} {city}, {country_it}</p>
   <p>Amministratore: Yuval Lavi</p>
-  <p>E-mail: <a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a></p>
+  <p>E-mail: <a href="mailto:{contact_email}">{contact_email}</a></p>
 </div>
 
 <h2>2. Quali dati trattiamo e perché</h2>
@@ -373,7 +357,7 @@ DATENSCHUTZ_IT = """
   L'autorità competente è il Commissario per la protezione dei dati di
   Hamburg, Ludwig-Erhard-Straße 22, 20459 Hamburg.</p>
   <p>Per esercitare i vostri diritti, scrivete a
-  <a href="mailto:info@terrra-europa.com">info@terrra-europa.com</a>.</p>
+  <a href="mailto:{contact_email}">{contact_email}</a>.</p>
 </div>
 
 <h2>5. Sicurezza</h2>
@@ -383,15 +367,27 @@ DATENSCHUTZ_IT = """
 """
 
 
-PAGES = {
-    "impressum": {
-        "de": {"title": "Impressum",      "body": IMPRESSUM_DE},
-        "en": {"title": "Legal notice",   "body": IMPRESSUM_EN},
-        "it": {"title": "Note legali",    "body": IMPRESSUM_IT},
-    },
-    "datenschutz": {
-        "de": {"title": "Datenschutzerklärung", "body": DATENSCHUTZ_DE},
-        "en": {"title": "Privacy policy",       "body": DATENSCHUTZ_EN},
-        "it": {"title": "Informativa privacy",  "body": DATENSCHUTZ_IT},
-    },
-}
+def build_pages(cfg: dict) -> dict:
+    """Render legal pages against a regional entity config dict.
+
+    cfg keys expected: legal_name, hrb, court, vat_id, street, postcode,
+    city, country_de, country_en, country_it, contact_email. Optional:
+    stand, stand_en, stand_it (default 'Juli 2026').
+    """
+    stand    = cfg.get("stand",    "Juli 2026")
+    stand_en = cfg.get("stand_en", "July 2026")
+    stand_it = cfg.get("stand_it", "Luglio 2026")
+    fmt = {**cfg, "stand": stand, "stand_en": stand_en, "stand_it": stand_it}
+
+    return {
+        "impressum": {
+            "de": {"title": "Impressum",    "body": IMPRESSUM_DE_TEMPLATE.format(**fmt)},
+            "en": {"title": "Legal notice", "body": IMPRESSUM_EN_TEMPLATE.format(**fmt)},
+            "it": {"title": "Note legali",  "body": IMPRESSUM_IT_TEMPLATE.format(**fmt)},
+        },
+        "datenschutz": {
+            "de": {"title": "Datenschutzerklärung", "body": DATENSCHUTZ_DE_TEMPLATE.format(**fmt)},
+            "en": {"title": "Privacy policy",       "body": DATENSCHUTZ_EN_TEMPLATE.format(**fmt)},
+            "it": {"title": "Informativa privacy",  "body": DATENSCHUTZ_IT_TEMPLATE.format(**fmt)},
+        },
+    }

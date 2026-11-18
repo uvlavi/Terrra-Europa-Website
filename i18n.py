@@ -1,5 +1,5 @@
 """
-Tiny i18n layer for terrra-europa.com.
+Tiny i18n layer for nova-terrra.eu.
 
 - Source of truth: locales/en.json (canonical English).
 - Translations: locales/de.json, locales/it.json — same key shape, values translated.

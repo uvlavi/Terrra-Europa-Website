@@ -1287,6 +1287,19 @@ async def organism_api(request: Request, path: str):
     return JSONResponse(data)
 
 
+# ── Team routes (session-protected, any logged-in user) ──────────────────────
+
+@app.get("/team/pmo", response_class=HTMLResponse)
+async def team_pmo(request: Request):
+    s = _get_session(request)
+    if not s:
+        return RedirectResponse("/login", status_code=302)
+    pmo_file = DATA_DIR / "pmo.html"
+    if not pmo_file.exists():
+        return HTMLResponse("<h1>PMO dashboard not generated yet</h1><p>Run /pmo-refresh to generate.</p>", status_code=404)
+    return HTMLResponse(pmo_file.read_text())
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8103"))
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)

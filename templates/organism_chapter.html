@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Chapter {{ chapter_no }} — Digital Twin{% endblock %}
+
+{% block head %}
+<style>
+  .org-page { min-height: 100vh; padding: 100px 24px 60px; background: var(--bg); }
+  .org-inner { max-width: 760px; margin: 0 auto; }
+  .back { font-size: 0.875rem; color: var(--text-secondary); text-decoration: none; }
+  .back:hover { color: var(--text); }
+  .ch-no {
+    font-size: 0.6875rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--text-secondary); font-weight: 700; margin: 18px 0 6px;
+  }
+  .ch-title { font-size: 1.75rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; line-height: 1.2; }
+  .ch-meta { font-size: 0.8125rem; color: var(--text-secondary); margin-top: 8px; }
+  .ch-body {
+    margin-top: 28px; font-size: 1.0625rem; line-height: 1.75; color: var(--text);
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .card {
+    background: var(--surface, #fff); border: 1px solid var(--border, rgba(0,0,0,.08));
+    border-radius: 14px; padding: 18px 20px; margin-top: 24px;
+  }
+  .card-title {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--text-secondary); margin-bottom: 12px;
+  }
+  .card ul { margin: 0; padding-left: 20px; }
+  .card li { font-size: 0.9375rem; line-height: 1.6; color: var(--text); margin-bottom: 6px; }
+  .ann { border-left: 3px solid var(--border, rgba(0,0,0,.12)); padding: 4px 0 4px 14px; margin-bottom: 14px; }
+  .ann:last-child { margin-bottom: 0; }
+  .ann-meta {
+    font-size: 0.6875rem; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--text-secondary); font-weight: 700; margin-bottom: 4px;
+  }
+  .ann-note { font-size: 0.9375rem; line-height: 1.6; color: var(--text); }
+  .banner-err {
+    padding: 12px 16px; border-radius: 10px; font-size: 0.875rem;
+    background: rgba(239,68,68,.10); border: 1px solid rgba(239,68,68,.32); color: #991b1b;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="org-page">
+  <div class="org-inner">
+    <a href="/organism" class="back">← Digital Twin</a>
+
+    {% if error or not chapter %}
+      <div class="ch-no" style="margin-top:24px;">Chapter {{ chapter_no }}</div>
+      <div class="banner-err" style="margin-top:12px;">
+        {{ error or 'This chapter does not exist.' }}
+      </div>
+    {% else %}
+      <div class="ch-no">
+        {% if chapter.get('chapter_no') == 0 %}Memory Zero{% else %}Chapter {{ chapter.get('chapter_no') }}{% endif %}
+      </div>
+      <h1 class="ch-title">{{ chapter.get('title') or '(untitled)' }}</h1>
+      <div class="ch-meta">
+        Written {{ (chapter.get('created_at') or '')[:19] | replace('T', ' ') }}
+        {% if chapter.get('occasion') %} · occasioned by: {{ chapter.get('occasion') }}{% endif %}
+      </div>
+
+      <div class="ch-body">{{ chapter.get('body') or '' }}</div>
+
+      {% if chapter.get('open_questions') %}
+      <div class="card">
+        <div class="card-title">Questions it left open</div>
+        <ul>
+          {% for q in chapter.get('open_questions') %}<li>{{ q }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if chapter.get('annotations') %}
+      <div class="card">
+        <div class="card-title">Annotations</div>
+        {% for a in chapter.get('annotations') %}
+          <div class="ann">
+            <div class="ann-meta">
+              {{ a.get('kind') or 'note' }} · {{ (a.get('created_at') or '')[:19] | replace('T', ' ') }}
+            </div>
+            <div class="ann-note">{{ a.get('note') }}</div>
+          </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if chapter.get('evidence_refs') %}
+      <div class="card">
+        <div class="card-title">Evidence it pointed to</div>
+        <div class="mono">{{ chapter.get('evidence_refs') }}</div>
+      </div>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

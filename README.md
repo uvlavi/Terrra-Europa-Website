@@ -59,14 +59,12 @@ Default access: username `yuval`, password `28061972` (seeded from `ACCESS_KEY` 
 All state in `data/` as JSON files (no DB):
 - `users.json` — user accounts with hashed passwords (PBKDF2-SHA256, salted)
 - `contacts.json` — public contact form submissions
-- `send_log.json` — last 500 outbound sends
 
 ## Environment
 
-Copy `.env.example` → `.env`. Required for outbound:
-- `RESEND_API_KEY` — full-access key (not send-only — needed if/when we add inbound API features)
+Copy `.env.example` → `.env`. Required:
 - `ACCESS_KEY` — admin password seed
-- `FROM_EMAIL`, `FROM_NAME`, `NOTIFY_EMAIL`, `ADMIN_EXTERNAL_EMAIL`
+- `FROM_EMAIL`, `FROM_NAME`, `NOTIFY_EMAIL`, `ADMIN_EXTERNAL_EMAIL` — identity strings only; the app sends no mail
 
 ## Adding a team member
 

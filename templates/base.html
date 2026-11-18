@@ -4,22 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0F1724">
-  <title>{% block title %}TERRRA Europa{% endblock %}</title>
-  <meta name="description" content="{% block description %}TERRRA Europa UG is a Hamburg-based environmental project development and consulting company supporting ecosystem restoration, regenerative land use, and EU research collaboration.{% endblock %}">
-  <link rel="canonical" href="https://terrra-europa.com/">
-  <link rel="alternate" hreflang="en" href="https://terrra-europa.com/">
-  <link rel="alternate" hreflang="de" href="https://terrra-europa.com/">
-  <link rel="alternate" hreflang="it" href="https://terrra-europa.com/">
-  <link rel="alternate" hreflang="x-default" href="https://terrra-europa.com/">
+  <title>{% block title %}Nova Terrra Europa{% endblock %}</title>
+  <meta name="description" content="{% block description %}Nova Terrra UG is a Hamburg-based environmental project development and consulting company supporting ecosystem restoration, regenerative land use, and EU research collaboration.{% endblock %}">
+  <link rel="canonical" href="https://nova-terrra.eu/">
+  <link rel="alternate" hreflang="en" href="https://nova-terrra.eu/">
+  <link rel="alternate" hreflang="de" href="https://nova-terrra.eu/">
+  <link rel="alternate" hreflang="it" href="https://nova-terrra.eu/">
+  <link rel="alternate" hreflang="x-default" href="https://nova-terrra.eu/">
 
   <!-- Open Graph / Twitter -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
   <meta property="og:description" content="{% block og_description %}{{ self.description() }}{% endblock %}">
-  <meta property="og:url" content="https://terrra-europa.com/">
-  <meta property="og:site_name" content="TERRRA Europa">
+  <meta property="og:url" content="https://nova-terrra.eu/">
+  <meta property="og:site_name" content="Nova Terrra Europa">
   <meta property="og:locale" content="{% if lang == 'de' %}de_DE{% elif lang == 'it' %}it_IT{% else %}en_GB{% endif %}">
-  <meta property="og:image" content="https://terrra-europa.com/static/bg1.jpg">
+  <meta property="og:image" content="https://nova-terrra.eu/static/bg1.jpg">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ self.title() }}">
   <meta name="twitter:description" content="{{ self.description() }}">
@@ -142,8 +142,8 @@
 <body>
   <nav class="site-nav">
     <a href="/" class="nav-logo">
-      <img src="/static/logo/terrra-logo-green.png" alt="TERRRA Europa">
-      <span class="nav-logo-text">TERRRA EUROPA</span>
+      <img src="/static/logo/terrra-logo-green.png" alt="Nova Terrra Europa">
+      <span class="nav-logo-text">{{ brand | upper }}</span>
     </a>
     <div class="nav-spacer"></div>
     {% block nav_action %}{% endblock %}

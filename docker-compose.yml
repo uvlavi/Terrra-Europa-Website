@@ -9,21 +9,48 @@ services:
     environment:
       PORT: "8103"
       ACCESS_KEY: ${ACCESS_KEY:-28061972}
-      FROM_EMAIL: ${FROM_EMAIL:-yuval@terrra-europa.com}
+
+      # ── Regional entity config (see app.py ENTITY_CONFIG) ────────────────
+      # To spin up a second regional entity clone this file, change these
+      # values, expose on a different port, and add the domain to Caddyfile.
+      DOMAIN: ${DOMAIN:-nova-terrra.eu}
+      BRAND_NAME: ${BRAND_NAME:-Nova Terrra Europa}
+      LEGAL_ENTITY_NAME: ${LEGAL_ENTITY_NAME:-Nova Terrra UG (haftungsbeschränkt)}
+      LEGAL_ENTITY_HRB: ${LEGAL_ENTITY_HRB:-HRB 200210}
+      LEGAL_ENTITY_COURT: ${LEGAL_ENTITY_COURT:-Amtsgericht Hamburg}
+      LEGAL_ENTITY_DATE: ${LEGAL_ENTITY_DATE:-09.07.2026}
+      LEGAL_ENTITY_VAT_ID: ${LEGAL_ENTITY_VAT_ID:-in Beantragung}
+      LEGAL_STREET: ${LEGAL_STREET:-Moorfuhrtweg 4}
+      LEGAL_POSTCODE: ${LEGAL_POSTCODE:-22301}
+      LEGAL_CITY: ${LEGAL_CITY:-Hamburg}
+      LEGAL_COUNTRY_DE: ${LEGAL_COUNTRY_DE:-Deutschland}
+      LEGAL_COUNTRY_EN: ${LEGAL_COUNTRY_EN:-Germany}
+      LEGAL_COUNTRY_IT: ${LEGAL_COUNTRY_IT:-Germania}
+
+      # ── Email ───────────────────────────────────────────────────────────
+      FROM_EMAIL: ${FROM_EMAIL:-yuval@nova-terrra.eu}
       FROM_NAME: ${FROM_NAME:-Yuval Lavi}
-      NOTIFY_EMAIL: ${NOTIFY_EMAIL:-yuval@terrra-europa.com}
+      NOTIFY_EMAIL: ${NOTIFY_EMAIL:-yuval@nova-terrra.eu}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-info@nova-terrra.eu}
       ADMIN_EXTERNAL_EMAIL: ${ADMIN_EXTERNAL_EMAIL:-yuval.lavi@gmail.com}
+
+      # ── Digital-twin viewer (read-only) ─────────────────────────────────
+      # The agent runs on a separate GPU host. Leave ORGANISM_URL empty and the
+      # /organism pages report "not configured" instead of failing.
+      ORGANISM_URL: ${ORGANISM_URL:-}
+      ORGANISM_TOKEN: ${ORGANISM_TOKEN:-}
+
+      # ── Analytics ───────────────────────────────────────────────────────
       GA4_ID: ${GA4_ID:-}
-      GA4_PROPERTY_ID: ${GA4_PROPERTY_ID:-537937190}
-      GA4_KEY_FILE: ${GA4_KEY_FILE:-/app/secrets/ga4-key.json}
-      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-resend}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-      BREVO_API_KEY: ${BREVO_API_KEY:-}
-      # SMTP fallback (if EMAIL_PROVIDER=smtp)
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-465}
+      # Lead-notification mail via Infomaniak (only mail the site sends)
+      SMTP_HOST: ${SMTP_HOST:-mail.infomaniak.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
+      GA4_PROPERTY_ID: ${GA4_PROPERTY_ID:-537937190}
+      GA4_KEY_FILE: ${GA4_KEY_FILE:-/app/secrets/ga4-key.json}
+
+      # ── Email provider ──────────────────────────────────────────────────
     restart: unless-stopped
 
   caddy:

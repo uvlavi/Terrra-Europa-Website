@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Login — TERRRA Europa{% endblock %}
+{% block title %}Login — Nova Terrra Europa{% endblock %}
 
 {% block head %}
 <style>
@@ -48,11 +48,11 @@
 <div class="auth-page">
   <div class="auth-card">
     <div class="auth-logo">
-      <img src="/static/logo/terrra-logo-green.png" alt="TERRRA Europa">
-      <span class="auth-logo-text">TERRRA EUROPA</span>
+      <img src="/static/logo/terrra-logo-green.png" alt="Nova Terrra Europa">
+      <span class="auth-logo-text">{{ brand | upper }}</span>
     </div>
     <h1 class="auth-title">Team login</h1>
-    <p class="auth-sub">Sign in to your TERRRA Europa account.</p>
+    <p class="auth-sub">Sign in to your Nova Terrra Europa account.</p>
 
     {% if error == "credentials" %}
     <div class="error-banner">Incorrect username or password. Please try again.</div>
@@ -72,7 +72,6 @@
       <button type="submit" class="submit-btn">Sign in</button>
     </form>
     <div class="auth-footer">
-      <a href="/forgot">Forgot password or want a new one?</a>
     </div>
   </div>
 </div>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Admin — TERRRA Europa{% endblock %}
+{% block title %}Admin — Nova Terrra Europa{% endblock %}
 
 {% block head %}
 <style>
@@ -48,8 +48,6 @@
   .btn-delete:hover { background: #ffccc7; }
   .btn-save   { background: var(--primary-light); color: var(--primary); border: 1px solid rgba(32,101,209,0.25); }
   .btn-save:hover { background: rgba(32,101,209,0.15); }
-  .btn-setup  { background: #f0f9f4; color: #1a7a4a; border: 1px solid #b7e4cb; }
-  .btn-setup:hover { background: #d9f2e6; }
 
   /* Users table */
   table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
@@ -85,7 +83,7 @@
 
 {% block nav_action %}
 <div class="nav-action">
-  <a href="/compose">Compose</a>
+  <a href="/organism">MEMENTO</a>
   <a href="/contacts">Contacts</a>
   <a href="/admin/analytics">Analytics</a>
   <a href="/admin/hero-sun">Hero sun</a>
@@ -152,8 +150,7 @@
           Select a user below to enable actions
         </span>
         <button type="button" id="btn-save"   class="btn btn-sm btn-save"   disabled onclick="doAction('save')">Save changes</button>
-        <button type="button" id="btn-reset"  class="btn btn-sm btn-reset"  disabled onclick="doAction('reset')">Send temp password</button>
-        <button type="button" id="btn-setup"  class="btn btn-sm btn-setup"  disabled onclick="doAction('send_setup')">Send setup instructions</button>
+        <button type="button" id="btn-reset"  class="btn btn-sm btn-reset"  disabled onclick="doAction('reset')">Issue temp password</button>
         <button type="button" id="btn-delete" class="btn btn-sm btn-delete" disabled onclick="doAction('delete')">Delete user</button>
       </div>
 
@@ -202,10 +199,9 @@
       </table>
     </div>
 
-    <!-- ── Email setup link ── -->
     <p style="margin-top:24px;font-size:0.9375rem;color:var(--text-secondary);">
-      Email setup steps for receiving and sending as <code>@{{ domain }}</code> are documented in the
-      <a href="/help" style="color:var(--primary);font-weight:600;">how-to guides</a>.
+      Mail for <code>@{{ domain }}</code> is handled by Infomaniak kSuite. This site sends no email;
+      a temp password is shown on screen when issued, to pass on out-of-band.
     </p>
 
   </div>
@@ -220,7 +216,7 @@ function onSelect(radio) {
   selectedUser   = radio.value;
   selectedRecov  = radio.dataset.recovery || '';
   selectedIsSelf = radio.dataset.isSelf === '1';
-  ['btn-save','btn-reset','btn-setup','btn-delete'].forEach(id =>
+  ['btn-save','btn-reset','btn-delete'].forEach(id =>
     document.getElementById(id).disabled = false
   );
   // Can't delete yourself
@@ -236,8 +232,7 @@ function doAction(kind) {
     return;
   }
   let path, msg;
-  if (kind === 'reset')      { path = '/reset';       msg = 'Send temp password to ' + selectedRecov + '?'; }
-  if (kind === 'send_setup') { path = '/send_setup';  msg = 'Send setup instructions to ' + selectedRecov + '?'; }
+  if (kind === 'reset')      { path = '/reset';       msg = 'Issue a new temp password for ' + selectedUser + '?'; }
   if (kind === 'delete')     { path = '/delete';      msg = 'Delete user ' + selectedUser + '?'; }
   if (!confirm(msg)) return;
 
