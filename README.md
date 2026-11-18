@@ -33,12 +33,15 @@ ImprovMX aliases:
 
 ```bash
 rsync -az --exclude-from=.rsync-exclude \
-  -e "ssh -i ~/.ssh/terrra-europa.pem" \
+  -e "ssh -i ~/.ssh/nova-europa.pem" \
   /Users/yuvallavi/dev/terrra-europa/website/ \
-  ubuntu@63.183.251.46:~/terrra-europa/
+  ubuntu@63.182.30.213:~/terrra-europa/
 
-ssh -i ~/.ssh/terrra-europa.pem ubuntu@63.183.251.46 \
-  "cd ~/terrra-europa && docker compose down && docker compose build --no-cache && docker compose up -d"
+ssh -i ~/.ssh/nova-europa.pem ubuntu@63.182.30.213 \
+  "cd ~/terrra-europa && docker compose up -d --build"
+
+# To push pmo.json separately (gitignored):
+# rsync -az -e "ssh -i ~/.ssh/nova-europa.pem" data/pmo.json ubuntu@63.182.30.213:~/terrra-europa/data/pmo.json
 ```
 
 **Always use `--no-cache`** — `restart` and `up -d --build` reuse cached layers and templates don't update.
